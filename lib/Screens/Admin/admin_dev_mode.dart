@@ -10,14 +10,29 @@ class DevModeScreen extends StatefulWidget {
   State<DevModeScreen> createState() => _DevModeScreenState();
 }
 
-class _DevModeScreenState extends State<DevModeScreen> {
+class _DevModeScreenState extends State<DevModeScreen>
+    with SingleTickerProviderStateMixin {
   Map<String, dynamic> _sharedPrefs = {};
   bool _isLoading = true;
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
 
   @override
   void initState() {
     super.initState();
+    _setupAnimations();
     _loadSharedPrefs();
+  }
+
+  void _setupAnimations() {
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
+    );
+    _animationController.forward();
   }
 
   Future<void> _loadSharedPrefs() async {
@@ -49,10 +64,63 @@ class _DevModeScreenState extends State<DevModeScreen> {
   }
 
   @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  Widget _buildSection(String title, IconData icon, List<Widget> children) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1A1A),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.1),
+          width: 1,
+        ),
+      ),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          iconColor: Colors.white,
+          collapsedIconColor: Colors.yellow,
+          tilePadding: const EdgeInsets.all(8),
+          leading: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF2A2A2A),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: Colors.white),
+          ),
+          title: Text(
+            title,
+            style: const TextStyle(
+              color: Colors.white,
+              fontFamily: 'Consola',
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          childrenPadding: const EdgeInsets.all(16),
+          children: children,
+        ),
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(
+            Icons.arrow_back,
+            color: Colors.white,
+          ),
+          onPressed: () => Navigator.pop(context),
+        ),
         backgroundColor: const Color(0xFF1F1F1F),
         elevation: 0,
         title: const Text(
@@ -65,16 +133,19 @@ class _DevModeScreenState extends State<DevModeScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh, color: Colors.white),
             onPressed: _loadSharedPrefs,
           ),
           IconButton(
-            icon: const Icon(Icons.delete_forever),
+            icon: const Icon(Icons.delete_forever, color: Colors.yellow),
             onPressed: () async {
               final confirm = await showDialog<bool>(
                 context: context,
                 builder: (context) => AlertDialog(
                   backgroundColor: const Color(0xFF1F1F1F),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
                   title: const Text(
                     'Clear All SharedPreferences',
                     style:
@@ -88,7 +159,10 @@ class _DevModeScreenState extends State<DevModeScreen> {
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.pop(context, false),
-                      child: const Text('Cancel'),
+                      child: const Text(
+                        'Cancel',
+                        style: TextStyle(color: Colors.white),
+                      ),
                     ),
                     TextButton(
                       onPressed: () => Navigator.pop(context, true),
@@ -110,132 +184,156 @@ class _DevModeScreenState extends State<DevModeScreen> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              children: [
-                ExpansionTile(
-                  title: const Text(
-                    'SharedPreferences',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontFamily: 'Consola',
-                    ),
-                  ),
-                  collapsedBackgroundColor: const Color(0xFF1A1A1A),
-                  backgroundColor: const Color(0xFF1A1A1A),
-                  children: _sharedPrefs.entries.map((entry) {
-                    return ListTile(
-                      title: Text(
-                        entry.key,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontFamily: 'Consola',
-                        ),
-                      ),
-                      subtitle: Text(
-                        entry.value.toString(),
-                        style: TextStyle(
-                          color: Colors.grey[400],
-                          fontFamily: 'Consola',
-                        ),
-                      ),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.red),
-                        onPressed: () => _deleteSharedPref(entry.key),
-                      ),
-                    );
-                  }).toList(),
-                ),
-
-                // Additional Dev Tools
-                ExpansionTile(
-                  title: const Text(
-                    'Network Info',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontFamily: 'Consola',
-                    ),
-                  ),
-                  collapsedBackgroundColor: const Color(0xFF1A1A1A),
-                  backgroundColor: const Color(0xFF1A1A1A),
-                  children: [
-                    ListTile(
-                      title: const Text(
-                        'API Base URL',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontFamily: 'Consola',
-                        ),
-                      ),
-                      subtitle: Text(
-                        dotenv.env['API_URL'] ?? 'Not set',
-                        style: TextStyle(
-                          color: Colors.grey[400],
-                          fontFamily: 'Consola',
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-
-                ExpansionTile(
-                  title: const Text(
-                    'App Info',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontFamily: 'Consola',
-                    ),
-                  ),
-                  collapsedBackgroundColor: const Color(0xFF1A1A1A),
-                  backgroundColor: const Color(0xFF1A1A1A),
-                  children: [
-                    ListTile(
-                      title: const Text(
-                        'Package Name',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontFamily: 'Consola',
-                        ),
-                      ),
-                      subtitle: FutureBuilder<PackageInfo>(
-                        future: PackageInfo.fromPlatform(),
-                        builder: (context, snapshot) {
-                          return Text(
-                            snapshot.data?.packageName ?? 'Loading...',
-                            style: TextStyle(
-                              color: Colors.grey[400],
-                              fontFamily: 'Consola',
+          : AnimatedBuilder(
+              animation: _animationController,
+              builder: (context, child) {
+                return FadeTransition(
+                  opacity: _fadeAnimation,
+                  child: ListView(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    children: [
+                      _buildSection(
+                        'SharedPreferences',
+                        Icons.storage_rounded,
+                        _sharedPrefs.entries.map((entry) {
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF2A2A2A),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        entry.key,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontFamily: 'Consola',
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        entry.value.toString(),
+                                        style: TextStyle(
+                                          color: Colors.grey[400],
+                                          fontFamily: 'Consola',
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline,
+                                      color: Colors.red),
+                                  onPressed: () => _deleteSharedPref(entry.key),
+                                ),
+                              ],
                             ),
                           );
-                        },
+                        }).toList(),
                       ),
-                    ),
-                    ListTile(
-                      title: const Text(
-                        'Version',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontFamily: 'Consola',
-                        ),
-                      ),
-                      subtitle: FutureBuilder<PackageInfo>(
-                        future: PackageInfo.fromPlatform(),
-                        builder: (context, snapshot) {
-                          return Text(
-                            '${snapshot.data?.version ?? 'Loading...'} (${snapshot.data?.buildNumber ?? ''})',
-                            style: TextStyle(
-                              color: Colors.grey[400],
-                              fontFamily: 'Consola',
+                      _buildSection(
+                        'Network Info',
+                        Icons.cloud_outlined,
+                        [
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF2A2A2A),
+                              borderRadius: BorderRadius.circular(12),
                             ),
-                          );
-                        },
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Firebase API Key',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontFamily: 'Consola',
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  dotenv.env['FIREBASE_API_KEY'] ?? 'Not set',
+                                  style: TextStyle(
+                                    color: Colors.grey[400],
+                                    fontFamily: 'Consola',
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ],
-                ),
-
-                // Add more tools as needed
-              ],
+                      _buildSection(
+                        'App Info',
+                        Icons.info_outline,
+                        [
+                          FutureBuilder<PackageInfo>(
+                            future: PackageInfo.fromPlatform(),
+                            builder: (context, snapshot) {
+                              return Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF2A2A2A),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Column(
+                                  children: [
+                                    _buildInfoRow(
+                                      'Package Name',
+                                      snapshot.data?.packageName ??
+                                          'Loading...',
+                                    ),
+                                    const SizedBox(height: 12),
+                                    _buildInfoRow(
+                                      'Version',
+                                      '${snapshot.data?.version ?? 'Loading...'} (${snapshot.data?.buildNumber ?? ''})',
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: Colors.white,
+            fontFamily: 'Consola',
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            color: Colors.grey[400],
+            fontFamily: 'Consola',
+          ),
+        ),
+      ],
     );
   }
 }
