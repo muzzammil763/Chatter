@@ -14,6 +14,13 @@ void main() async {
   final notificationService = NotificationService();
   await notificationService.initialize(navigatorKey);
   runApp(
-    ChatterApp(navigatorKey: navigatorKey),
+    MaterialApp(
+      navigatorKey: navigatorKey,
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(primaryColor: Colors.black),
+      home: Builder(
+        builder: (context) => ChatterApp(navigatorKey: navigatorKey),
+      ),
+    ),
   );
 }

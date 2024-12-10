@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:ui';
 
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -39,8 +40,6 @@ class UpdateService {
       'https://raw.githubusercontent.com/muzzammil763/Chatter/master/update-config.json';
 
   Future<void> checkForUpdates(BuildContext context) async {
-    final applicationContext = context;
-
     try {
       final packageInfo = await PackageInfo.fromPlatform();
       if (!context.mounted) return;
@@ -50,10 +49,12 @@ class UpdateService {
       }
 
       final response = await http.get(Uri.parse(updateUrl));
+      if (!context.mounted) return;
+
       if (kDebugMode) {
         print('Response Status: ${response.statusCode}');
+        print('Response Body: ${response.body}');
       }
-      if (kDebugMode) print('Response Body: ${response.body}');
 
       if (response.statusCode == 200) {
         bool updateRequired = false;
@@ -70,10 +71,8 @@ class UpdateService {
           if (kDebugMode) print('No Update Required');
         }
 
-        if (updateRequired) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            _showUpdateDialog(applicationContext, downloadUrl);
-          });
+        if (updateRequired && context.mounted) {
+          _showUpdateDialog(context, downloadUrl);
         }
       }
     } catch (e) {
@@ -94,11 +93,13 @@ class UpdateService {
 
   void _showUpdateDialog(BuildContext context, String downloadUrl) {
     if (!context.mounted) return;
+
     showModalBottomSheet(
       context: context,
       isDismissible: false,
       enableDrag: false,
       backgroundColor: Colors.transparent,
+      useRootNavigator: true,
       builder: (ctx) {
         return BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
@@ -197,8 +198,6 @@ class UpdateService {
     try {
       if (kDebugMode) {
         print('Starting download process...');
-      }
-      if (kDebugMode) {
         print('Download URL: $downloadUrl');
       }
 
@@ -207,30 +206,112 @@ class UpdateService {
           print('Requesting permissions...');
         }
 
-        var storageStatus = await Permission.storage.request();
+        // First, check Android version
+        final androidInfo = await DeviceInfoPlugin().androidInfo;
+        final androidVersion = androidInfo.version.sdkInt;
+
         if (kDebugMode) {
-          print('Storage permission status: $storageStatus');
+          print('Android SDK Version: $androidVersion');
         }
 
-        var installStatus = await Permission.requestInstallPackages.request();
-        if (kDebugMode) {
-          print('Install permission status: $installStatus');
-        }
+        // For Android 11 (API 30) and above
+        if (androidVersion >= 30) {
+          // Only request installation permission
+          final installStatus =
+              await Permission.requestInstallPackages.request();
 
-        if (!storageStatus.isGranted || !installStatus.isGranted) {
-          if (kDebugMode) {
-            print('Permissions not granted');
+          if (!installStatus.isGranted) {
+            if (context.mounted) {
+              await showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (context) => AlertDialog(
+                  title: const Text(
+                    'Installation Permission Required',
+                    style: TextStyle(
+                      fontFamily: 'Consola',
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  content: const Text(
+                    'Please allow app installation from this source.',
+                    style: TextStyle(fontFamily: 'Consola'),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text(
+                        'OK',
+                        style: TextStyle(fontFamily: 'Consola'),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+            return;
           }
-          return;
+        }
+        // For Android 10 (API 29) and below
+        else {
+          final storageStatus = await Permission.storage.request();
+          final installStatus =
+              await Permission.requestInstallPackages.request();
+
+          if (!storageStatus.isGranted || !installStatus.isGranted) {
+            if (context.mounted) {
+              bool? retry = await showDialog<bool>(
+                context: context,
+                barrierDismissible: false,
+                builder: (context) => AlertDialog(
+                  title: const Text(
+                    'Permissions Required',
+                    style: TextStyle(
+                      fontFamily: 'Consola',
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  content: const Text(
+                    'Storage and installation permissions are required to update the app.',
+                    style: TextStyle(fontFamily: 'Consola'),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text(
+                        'Cancel',
+                        style: TextStyle(fontFamily: 'Consola'),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text(
+                        'Open Settings',
+                        style: TextStyle(fontFamily: 'Consola'),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+
+              if (retry == true) {
+                await openAppSettings();
+                return;
+              }
+            }
+            return;
+          }
         }
       }
 
+      // Show download progress
       if (!context.mounted) return;
       showModalBottomSheet(
         context: context,
         isDismissible: false,
         enableDrag: false,
         backgroundColor: Colors.transparent,
+        useRootNavigator: true,
         builder: (ctx) => StatefulBuilder(
           builder: (context, setState) {
             return BackdropFilter(
@@ -272,8 +353,20 @@ class UpdateService {
         ),
       );
 
-      final dir = await getApplicationDocumentsDirectory();
-      final filePath = '${dir.path}/app-update.apk';
+      // Get the appropriate directory based on Android version
+      Directory? dir;
+      if (Platform.isAndroid) {
+        if (await Permission.storage.isGranted) {
+          dir = await getExternalStorageDirectory();
+        } else {
+          dir = await getApplicationDocumentsDirectory();
+        }
+      } else {
+        dir = await getApplicationDocumentsDirectory();
+      }
+
+      final filePath = '${dir?.path}/app-update.apk';
+
       if (kDebugMode) {
         print('Download path: $filePath');
       }
@@ -328,8 +421,6 @@ class UpdateService {
     } catch (e, stackTrace) {
       if (kDebugMode) {
         print('Error downloading update: $e');
-      }
-      if (kDebugMode) {
         print('Stack trace: $stackTrace');
       }
 
@@ -337,6 +428,7 @@ class UpdateService {
         showModalBottomSheet(
           context: context,
           backgroundColor: Colors.transparent,
+          useRootNavigator: true,
           builder: (ctx) => BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
             child: Container(
@@ -362,7 +454,10 @@ class UpdateService {
                   Text(
                     e.toString(),
                     textAlign: TextAlign.center,
-                    style: const TextStyle(color: Colors.grey),
+                    style: const TextStyle(
+                      color: Colors.grey,
+                      fontFamily: 'Consola',
+                    ),
                   ),
                   const SizedBox(height: 16),
                   SizedBox(
