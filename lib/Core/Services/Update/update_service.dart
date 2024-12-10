@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:ui';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:open_file/open_file.dart';
@@ -34,32 +35,49 @@ class UpdateInfo {
 }
 
 class UpdateService {
-  static const String UPDATE_URL =
+  static const String updateUrl =
       'https://raw.githubusercontent.com/muzzammil763/Chatter/master/update-config.json';
 
   Future<void> checkForUpdates(BuildContext context) async {
+    Navigator.of(context);
+    final applicationContext = context;
+
     try {
       final packageInfo = await PackageInfo.fromPlatform();
       final currentVersion = packageInfo.version;
-      print('Current Version: $currentVersion'); // Debug log
+      if (kDebugMode) {
+        print('Current Version: $currentVersion');
+      }
 
-      final response = await http.get(Uri.parse(UPDATE_URL));
-      print('Response Status: ${response.statusCode}'); // Debug log
-      print('Response Body: ${response.body}'); // Debug log
+      final response = await http.get(Uri.parse(updateUrl));
+      if (kDebugMode) {
+        print('Response Status: ${response.statusCode}');
+      }
+      if (kDebugMode) print('Response Body: ${response.body}');
 
       if (response.statusCode == 200) {
+        bool updateRequired = false;
+        late String downloadUrl;
+
         final updateInfo = UpdateInfo.fromJson(json.decode(response.body));
-        print('Latest Version: ${updateInfo.latestVersion}'); // Debug log
+        if (kDebugMode) print('Latest Version: ${updateInfo.latestVersion}');
 
         if (_isUpdateRequired(currentVersion, updateInfo.minSupportedVersion)) {
-          print('Update Required'); // Debug log
-          _showUpdateDialog(context, updateInfo.url);
+          if (kDebugMode) print('Update Required');
+          updateRequired = true;
+          downloadUrl = updateInfo.url;
         } else {
-          print('No Update Required'); // Debug log
+          if (kDebugMode) print('No Update Required');
+        }
+
+        if (updateRequired) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _showUpdateDialog(applicationContext, downloadUrl);
+          });
         }
       }
     } catch (e) {
-      print('Error checking for updates: $e');
+      if (kDebugMode) print('Error checking for updates: $e');
     }
   }
 
@@ -176,28 +194,36 @@ class UpdateService {
   Future<void> _downloadAndInstallUpdate(
       BuildContext context, String downloadUrl) async {
     try {
-      print('Starting download process...'); // Debug log
-      print('Download URL: $downloadUrl'); // Debug log
+      if (kDebugMode) {
+        print('Starting download process...');
+      }
+      if (kDebugMode) {
+        print('Download URL: $downloadUrl');
+      }
 
-      // Request all necessary permissions
       if (Platform.isAndroid) {
-        print('Requesting permissions...'); // Debug log
+        if (kDebugMode) {
+          print('Requesting permissions...');
+        }
 
-        // Request storage permission
         var storageStatus = await Permission.storage.request();
-        print('Storage permission status: $storageStatus'); // Debug log
+        if (kDebugMode) {
+          print('Storage permission status: $storageStatus');
+        }
 
-        // Request installation permission
         var installStatus = await Permission.requestInstallPackages.request();
-        print('Install permission status: $installStatus'); // Debug log
+        if (kDebugMode) {
+          print('Install permission status: $installStatus');
+        }
 
         if (!storageStatus.isGranted || !installStatus.isGranted) {
-          print('Permissions not granted'); // Debug log
+          if (kDebugMode) {
+            print('Permissions not granted');
+          }
           return;
         }
       }
 
-      // Show download progress sheet
       if (!context.mounted) return;
       showModalBottomSheet(
         context: context,
@@ -245,58 +271,67 @@ class UpdateService {
         ),
       );
 
-      // Set up download path
       final dir = await getApplicationDocumentsDirectory();
       final filePath = '${dir.path}/app-update.apk';
-      print('Download path: $filePath'); // Debug log
+      if (kDebugMode) {
+        print('Download path: $filePath');
+      }
 
-      // Configure Dio
       final dio = Dio();
       dio.options.followRedirects = true;
       dio.options.validateStatus = (status) => status! < 500;
 
-      // Download file
       final response = await dio.download(
         downloadUrl,
         filePath,
         onReceiveProgress: (received, total) {
           if (total != -1) {
             final progress = (received / total * 100).toStringAsFixed(0);
-            print('Download Progress: $progress%'); // Debug log
+            if (kDebugMode) {
+              print('Download Progress: $progress%');
+            }
           }
         },
       );
 
-      print('Download response status: ${response.statusCode}'); // Debug log
+      if (kDebugMode) {
+        print('Download response status: ${response.statusCode}');
+      }
 
-      // Close progress bottom sheet
       if (context.mounted) {
         Navigator.pop(context);
       }
 
-      // Verify file exists
       final file = File(filePath);
       if (!await file.exists()) {
         throw Exception('Downloaded file not found');
       }
 
-      print('File size: ${await file.length()} bytes'); // Debug log
+      if (kDebugMode) {
+        print('File size: ${await file.length()} bytes');
+      }
 
-      // Install APK
       if (Platform.isAndroid) {
-        print('Installing APK...'); // Debug log
+        if (kDebugMode) {
+          print('Installing APK...');
+        }
         final result = await OpenFile.open(filePath);
-        print('Install result: ${result.message}'); // Debug log
+        if (kDebugMode) {
+          print('Install result: ${result.message}');
+        }
 
         if (result.type != ResultType.done) {
           throw Exception('Failed to install: ${result.message}');
         }
       }
     } catch (e, stackTrace) {
-      print('Error downloading update: $e'); // Debug log
-      print('Stack trace: $stackTrace'); // Debug log
+      if (kDebugMode) {
+        print('Error downloading update: $e');
+      }
+      if (kDebugMode) {
+        print('Stack trace: $stackTrace');
+      }
 
-      // Show error bottom sheet
       if (context.mounted) {
         showModalBottomSheet(
           context: context,
@@ -314,7 +349,7 @@ class UpdateService {
                 children: [
                   const Icon(Icons.error, color: Colors.red, size: 48),
                   const SizedBox(height: 16),
-                  Text(
+                  const Text(
                     'Download Error',
                     style: TextStyle(
                       fontFamily: 'Consola',
@@ -326,7 +361,7 @@ class UpdateService {
                   Text(
                     e.toString(),
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey),
+                    style: const TextStyle(color: Colors.grey),
                   ),
                   const SizedBox(height: 16),
                   SizedBox(
