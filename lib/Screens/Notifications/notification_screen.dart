@@ -431,6 +431,18 @@ class NotificationScreen extends StatelessWidget {
                 background: Container(
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(12),
+                    color: Colors.blue.withOpacity(0.8),
+                  ),
+                  alignment: Alignment.centerLeft,
+                  padding: const EdgeInsets.only(left: 20),
+                  child: const Icon(
+                    Icons.done_all,
+                    color: Colors.white,
+                  ),
+                ),
+                secondaryBackground: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
                     color: Colors.red.withOpacity(0.8),
                   ),
                   alignment: Alignment.centerRight,
@@ -440,9 +452,22 @@ class NotificationScreen extends StatelessWidget {
                     color: Colors.white,
                   ),
                 ),
-                direction: DismissDirection.endToStart,
+                direction: DismissDirection.horizontal,
+                confirmDismiss: (direction) async {
+                  if (direction == DismissDirection.startToEnd) {
+                    await FirebaseDatabase.instance
+                        .ref('notifications/$currentUserId/$notificationId')
+                        .update({'read': true});
+                    return false;
+                  } else {
+                    return true;
+                  }
+                },
                 onDismissed: (direction) {
-                  _deleteNotification(context, currentUserId!, notificationId);
+                  if (direction == DismissDirection.endToStart) {
+                    _deleteNotification(
+                        context, currentUserId!, notificationId);
+                  }
                 },
                 child: Stack(
                   children: [
