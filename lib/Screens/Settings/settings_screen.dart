@@ -169,10 +169,11 @@ class SettingsScreen extends StatelessWidget {
 
     if (result ?? false) {
       if (context.mounted) {
-        Navigator.of(context).pushReplacement(
+        Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(
             builder: (_) => const LoginScreen(),
           ),
+          (route) => false,
         );
       }
     }
