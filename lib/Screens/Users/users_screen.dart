@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ui';
 
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/cupertino.dart';
@@ -7,7 +6,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:random_avatar/random_avatar.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:web_chatter_mobile/Core/Services/Auth/auth_service.dart';
 import 'package:web_chatter_mobile/Core/Services/Notification/notification_service.dart';
 import 'package:web_chatter_mobile/Core/Services/Status/user_status_service.dart';
@@ -17,7 +15,8 @@ import 'package:web_chatter_mobile/Screens/Chat/chat_screen.dart';
 import 'package:web_chatter_mobile/Screens/Notifications/notification_screen.dart';
 import 'package:web_chatter_mobile/Screens/Settings/settings_screen.dart';
 import 'package:web_chatter_mobile/Screens/Users/user_profile_screen.dart';
-import 'package:web_chatter_mobile/main.dart';
+
+import '../../main.dart';
 
 class UsersScreen extends StatefulWidget {
   const UsersScreen({super.key});
@@ -28,7 +27,6 @@ class UsersScreen extends StatefulWidget {
 
 class _UsersScreenState extends State<UsersScreen>
     with SingleTickerProviderStateMixin {
-  bool _hasShownNotificationDialog = false;
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocus = FocusNode();
   String _searchQuery = '';
@@ -69,6 +67,7 @@ class _UsersScreenState extends State<UsersScreen>
     super.initState();
     _setupAnimations();
     _initializeCache();
+    _initializeNotifications(); // Move to initState
 
     _userSubscription = FirebaseDatabase.instance.ref('users').onValue.listen(
       (event) {
@@ -89,156 +88,17 @@ class _UsersScreenState extends State<UsersScreen>
     }
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (!_hasShownNotificationDialog) {
-      final context = this.context;
-      WidgetsBinding.instance.addPostFrameCallback((_) async {
-        if (mounted) {
-          await _initializeNotifications(context);
-        }
-      });
-      _hasShownNotificationDialog = true;
-    }
-  }
-
-  Future<void> _initializeNotifications(BuildContext context) async {
+  Future<void> _initializeNotifications() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final hasInitializedNotifications =
-          prefs.getBool('notifications_initialized') ?? false;
-
-      if (hasInitializedNotifications || !mounted) return;
-
       final notificationService = NotificationService();
+      final bool isPermissionGranted =
+          await notificationService.checkPermissions();
 
-      bool? shouldRequestPermission = await showModalBottomSheet<bool>(
-        context: context,
-        backgroundColor: Colors.transparent,
-        isDismissible: false,
-        builder: (BuildContext context) => BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
-          child: PopScope(
-            canPop: false,
-            child: Container(
-              decoration: const BoxDecoration(
-                color: Color(0xFF1F1F1F),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    margin: const EdgeInsets.only(top: 12),
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.withOpacity(0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.notifications,
-                      color: Colors.blue,
-                      size: 32,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Enable Notifications',
-                    style: TextStyle(
-                      fontFamily: 'Consola',
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 32),
-                    child: Text(
-                      'Would you like to receive notifications for new messages and updates?',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontFamily: 'Consola',
-                        color: Colors.grey,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.grey[800],
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            onPressed: () async {
-                              await prefs.setBool(
-                                  'notifications_initialized', true);
-                              if (context.mounted) {
-                                Navigator.pop(context, false);
-                              }
-                            },
-                            child: const Text(
-                              'Not Now',
-                              style: TextStyle(
-                                fontFamily: 'Consola',
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.blue,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            onPressed: () async {
-                              Navigator.pop(context, true);
-                            },
-                            child: const Text(
-                              'Enable',
-                              style: TextStyle(
-                                fontFamily: 'Consola',
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
+      if (!isPermissionGranted && mounted) {
+        await Future.delayed(const Duration(milliseconds: 500));
+        if (!mounted) return;
 
-      if (shouldRequestPermission == true && mounted) {
         await notificationService.initialize(navigatorKey);
-        await prefs.setBool('notifications_initialized', true);
       }
     } catch (e) {
       debugPrint('Error initializing notifications: $e');

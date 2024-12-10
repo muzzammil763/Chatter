@@ -15,6 +15,7 @@ void main() async {
   await dotenv.load(fileName: ".env");
   WidgetsFlutterBinding.ensureInitialized();
   await InitializationService.initialize();
+  await FirebaseMessagingService.initialize();
 
   runApp(
     MultiProvider(

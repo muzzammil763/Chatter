@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:firebase_auth/firebase_auth.dart';
@@ -24,21 +25,20 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 }
 
 class NotificationService {
-  static NotificationService? _instance;
-  late final GlobalKey<NavigatorState> _navigationKey;
+  static final NotificationService _instance = NotificationService._internal();
+  factory NotificationService() => _instance;
+  NotificationService._internal();
+
+  GlobalKey<NavigatorState>? _navigationKey;
   bool _isAppInForeground = true;
+  bool _isInitialized = false;
+  bool _isInitializing = false;
 
-  NotificationService._();
-
-  factory NotificationService() {
-    _instance ??= NotificationService._();
-    return _instance!;
-  }
+  final _initializationCompleter = Completer<void>();
 
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
   final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
-
   static const String _fcmEndpoint =
       'https://fcm.googleapis.com/v1/projects/web-chatter-763/messages:send';
 
@@ -58,13 +58,50 @@ class NotificationService {
       };
 
   Future<void> initialize(GlobalKey<NavigatorState> navigationKey) async {
-    _navigationKey = navigationKey;
-    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-    await _requestPermissions();
-    await _setupNotifications();
-    await _setupFCMToken();
-    _setupMessageHandlers();
-    _setupAppStateListener();
+    if (_isInitialized) return;
+    if (_isInitializing) {
+      // Wait for ongoing initialization to complete
+      await _initializationCompleter.future;
+      return;
+    }
+
+    _isInitializing = true;
+    try {
+      _navigationKey = navigationKey;
+      FirebaseMessaging.onBackgroundMessage(
+          _firebaseMessagingBackgroundHandler);
+
+      final settings = await _messaging.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+
+      if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+        await _setupNotifications();
+        await _setupFCMToken();
+        _setupMessageHandlers();
+        _setupAppStateListener();
+        _isInitialized = true;
+      }
+
+      _initializationCompleter.complete();
+    } catch (e) {
+      _initializationCompleter.completeError(e);
+      rethrow;
+    } finally {
+      _isInitializing = false;
+    }
+  }
+
+  Future<bool> checkPermissions() async {
+    try {
+      final settings = await _messaging.getNotificationSettings();
+      return settings.authorizationStatus == AuthorizationStatus.authorized;
+    } catch (e) {
+      debugPrint('Error checking notification permissions: $e');
+      return false;
+    }
   }
 
   void _setupAppStateListener() {
@@ -73,14 +110,6 @@ class NotificationService {
         onResume: () => _isAppInForeground = true,
         onPause: () => _isAppInForeground = false,
       ),
-    );
-  }
-
-  Future<void> _requestPermissions() async {
-    await _messaging.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
     );
   }
 
@@ -253,7 +282,7 @@ class NotificationService {
     try {
       if (data['type'] == 'chat_message') {
         final senderId = data['senderId'];
-        if (senderId == null || _navigationKey.currentState == null) return;
+        if (senderId == null || _navigationKey!.currentState == null) return;
 
         final senderSnapshot =
             await FirebaseDatabase.instance.ref('users/$senderId').get();
@@ -262,12 +291,12 @@ class NotificationService {
         final senderData =
             Map<String, dynamic>.from(senderSnapshot.value as Map);
 
-        await _navigationKey.currentState!.pushAndRemoveUntil(
+        await _navigationKey!.currentState!.pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => const UsersScreen()),
           (route) => false,
         );
 
-        await _navigationKey.currentState!.push(
+        await _navigationKey!.currentState!.push(
           MaterialPageRoute(
             builder: (_) => ChatScreen(
               otherUser: senderData,
