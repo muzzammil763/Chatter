@@ -39,11 +39,11 @@ class UpdateService {
       'https://raw.githubusercontent.com/muzzammil763/Chatter/master/update-config.json';
 
   Future<void> checkForUpdates(BuildContext context) async {
-    Navigator.of(context);
     final applicationContext = context;
 
     try {
       final packageInfo = await PackageInfo.fromPlatform();
+      if (!context.mounted) return;
       final currentVersion = packageInfo.version;
       if (kDebugMode) {
         print('Current Version: $currentVersion');
@@ -93,6 +93,7 @@ class UpdateService {
   }
 
   void _showUpdateDialog(BuildContext context, String downloadUrl) {
+    if (!context.mounted) return;
     showModalBottomSheet(
       context: context,
       isDismissible: false,
