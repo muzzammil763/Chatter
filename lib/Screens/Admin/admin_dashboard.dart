@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:web_chatter_mobile/Screens/Admin/admin_all_user.dart';
 import 'package:web_chatter_mobile/Screens/Admin/admin_analytics.dart';
 import 'package:web_chatter_mobile/Screens/Admin/admin_chat_monitoring.dart';
+import 'package:web_chatter_mobile/Screens/Admin/admin_dev_mode.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -54,6 +55,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         'title': 'Monitor Chat',
         'icon': Icons.chat_bubble_outline,
         'screen': const AdminChatMonitoring(),
+      },
+      {
+        'title': 'Dev Mode',
+        'icon': Icons.developer_mode,
+        'screen': const DevModeScreen(),
       },
     ];
 
