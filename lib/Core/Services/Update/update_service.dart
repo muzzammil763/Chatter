@@ -58,22 +58,17 @@ class UpdateService {
       }
 
       if (response.statusCode == 200) {
-        bool updateRequired = false;
-        late String downloadUrl;
-
         final updateInfo = UpdateInfo.fromJson(json.decode(response.body));
         if (kDebugMode) print('Latest Version: ${updateInfo.latestVersion}');
 
-        if (_isUpdateRequired(currentVersion, updateInfo.minSupportedVersion)) {
+        // Compare with latest version instead of minimum supported version
+        if (_isUpdateRequired(currentVersion, updateInfo.latestVersion)) {
           if (kDebugMode) print('Update Required');
-          updateRequired = true;
-          downloadUrl = updateInfo.url;
+          if (context.mounted) {
+            _showUpdateDialog(context, updateInfo.url);
+          }
         } else {
           if (kDebugMode) print('No Update Required');
-        }
-
-        if (updateRequired && context.mounted) {
-          _showUpdateDialog(context, downloadUrl);
         }
       }
     } catch (e) {
@@ -81,13 +76,13 @@ class UpdateService {
     }
   }
 
-  bool _isUpdateRequired(String currentVersion, String minVersion) {
+  bool _isUpdateRequired(String currentVersion, String latestVersion) {
     List<int> current = currentVersion.split('.').map(int.parse).toList();
-    List<int> minimum = minVersion.split('.').map(int.parse).toList();
+    List<int> latest = latestVersion.split('.').map(int.parse).toList();
 
     for (int i = 0; i < 3; i++) {
-      if (current[i] < minimum[i]) return true;
-      if (current[i] > minimum[i]) return false;
+      if (current[i] < latest[i]) return true;
+      if (current[i] > latest[i]) return false;
     }
     return false;
   }

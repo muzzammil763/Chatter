@@ -17,7 +17,6 @@ class ChatterApp extends StatefulWidget {
 
 class _ChatterAppState extends State<ChatterApp> with WidgetsBindingObserver {
   Future<void> _checkForUpdates() async {
-    await Future.delayed(const Duration(milliseconds: 500));
     if (!mounted) return;
     await UpdateService().checkForUpdates(context);
   }
@@ -26,7 +25,9 @@ class _ChatterAppState extends State<ChatterApp> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _checkForUpdates();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkForUpdates();
+    });
   }
 
   @override

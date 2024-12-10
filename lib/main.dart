@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:provider/provider.dart';
 import 'package:web_chatter_mobile/App/app_and_wrapper.dart';
+import 'package:web_chatter_mobile/Core/Services/Auth/auth_service.dart';
 import 'package:web_chatter_mobile/Core/Services/Initialization/initialization_service.dart';
 import 'package:web_chatter_mobile/Core/Services/Notification/notification_service.dart';
 
@@ -11,15 +13,23 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await InitializationService.initialize();
   await FirebaseMessagingService.initialize();
-  final notificationService = NotificationService();
-  await notificationService.initialize(navigatorKey);
+  // final notificationService = NotificationService();
+  // await notificationService.initialize(navigatorKey);
+
   runApp(
-    MaterialApp(
-      navigatorKey: navigatorKey,
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(primaryColor: Colors.black),
-      home: Builder(
-        builder: (context) => ChatterApp(navigatorKey: navigatorKey),
+    MultiProvider(
+      providers: [
+        Provider<AuthService>(
+          create: (_) => AuthService(),
+        ),
+      ],
+      child: MaterialApp(
+        navigatorKey: navigatorKey,
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(primaryColor: Colors.black),
+        home: Builder(
+          builder: (context) => ChatterApp(navigatorKey: navigatorKey),
+        ),
       ),
     ),
   );
