@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -42,6 +44,101 @@ class NotificationScreen extends StatelessWidget {
     }
   }
 
+  Future<void> _showNotificationDetails(
+      BuildContext context, Map notification) async {
+    await showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
+        child: Container(
+          decoration: const BoxDecoration(
+            color: Color(0xFF1F1F1F),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                margin: const EdgeInsets.only(top: 12),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[600],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 24),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      notification['type']?.toString().toUpperCase() ??
+                          'NOTIFICATION',
+                      style: const TextStyle(
+                        color: Colors.grey,
+                        fontFamily: 'Consola',
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      notification['message'] ?? '',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontFamily: 'Consola',
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      _formatTimestamp(notification['timestamp'] as int),
+                      style: const TextStyle(
+                        color: Colors.grey,
+                        fontFamily: 'Consola',
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _readAllNotifications(BuildContext context) async {
+    final currentUserId = context.read<AuthService>().currentUser?.uid;
+    try {
+      final snapshot = await FirebaseDatabase.instance
+          .ref('notifications/$currentUserId')
+          .get();
+
+      if (snapshot.value != null) {
+        final notifications = snapshot.value as Map<dynamic, dynamic>;
+        final updates = <String, dynamic>{};
+
+        notifications.forEach((key, value) {
+          updates['notifications/$currentUserId/$key/read'] = true;
+        });
+
+        await FirebaseDatabase.instance.ref().update(updates);
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error marking notifications as read: $e')),
+        );
+      }
+    }
+  }
+
   Future<void> _clearAllNotifications(BuildContext context) async {
     final currentUserId = context.read<AuthService>().currentUser?.uid;
     try {
@@ -81,50 +178,198 @@ class NotificationScreen extends StatelessWidget {
       appBar: AppBar(
         actions: [
           IconButton(
-            icon: const Icon(Icons.clear_all, color: Colors.white),
-            onPressed: () => showDialog(
+            icon: const Icon(Icons.done_all, color: Colors.white),
+            onPressed: () => showModalBottomSheet(
               context: context,
-              builder: (context) => AlertDialog(
-                backgroundColor: const Color(0xFF1A1A1A),
-                title: const Text(
-                  'Clear All Notifications',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontFamily: 'Consola',
+              backgroundColor: Colors.transparent,
+              builder: (context) => BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF1F1F1F),
+                    borderRadius:
+                        BorderRadius.vertical(top: Radius.circular(20)),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        margin: const EdgeInsets.only(top: 12),
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[600],
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      const Text(
+                        'Mark All as Read',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontFamily: 'Consola',
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Are you sure you want to mark all notifications as read?',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.grey,
+                          fontFamily: 'Consola',
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          onPressed: () {
+                            _readAllNotifications(context);
+                            Navigator.pop(context);
+                          },
+                          child: const Text(
+                            'Mark All as Read',
+                            style: TextStyle(
+                              color: Color(0xFF1F1F1F),
+                              fontFamily: 'Consola',
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: TextButton(
+                          style: TextButton.styleFrom(
+                            backgroundColor: Colors.white10,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text(
+                            'Cancel',
+                            style: TextStyle(
+                              color: Colors.grey,
+                              fontFamily: 'Consola',
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
                   ),
                 ),
-                content: const Text(
-                  'Are you sure you want to clear all notifications?',
-                  style: TextStyle(
-                    color: Colors.grey,
-                    fontFamily: 'Consola',
+              ),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.clear_all, color: Colors.white),
+            onPressed: () => showModalBottomSheet(
+              context: context,
+              backgroundColor: Colors.transparent,
+              builder: (context) => BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF1F1F1F),
+                    borderRadius:
+                        BorderRadius.vertical(top: Radius.circular(20)),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        margin: const EdgeInsets.only(top: 12),
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[600],
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      const Text(
+                        'Clear All Notifications',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontFamily: 'Consola',
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Are you sure you want to clear all notifications?',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.grey,
+                          fontFamily: 'Consola',
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          onPressed: () {
+                            _clearAllNotifications(context);
+                            Navigator.pop(context);
+                          },
+                          child: const Text(
+                            'Clear All',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontFamily: 'Consola',
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: TextButton(
+                          style: TextButton.styleFrom(
+                            backgroundColor: Colors.white10,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text(
+                            'Cancel',
+                            style: TextStyle(
+                              color: Colors.grey,
+                              fontFamily: 'Consola',
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
                   ),
                 ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text(
-                      'Cancel',
-                      style: TextStyle(
-                        color: Colors.grey,
-                        fontFamily: 'Consola',
-                      ),
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      _clearAllNotifications(context);
-                      Navigator.pop(context);
-                    },
-                    child: const Text(
-                      'Clear All',
-                      style: TextStyle(
-                        color: Colors.red,
-                        fontFamily: 'Consola',
-                      ),
-                    ),
-                  ),
-                ],
               ),
             ),
           ),
@@ -211,6 +456,9 @@ class NotificationScreen extends StatelessWidget {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: ListTile(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                         title: Text(
                           notification['message'] ?? '',
                           style: const TextStyle(
@@ -266,6 +514,7 @@ class NotificationScreen extends StatelessWidget {
                               )
                             : null,
                         onTap: () {
+                          _showNotificationDetails(context, notification);
                           if (!isRead) {
                             FirebaseDatabase.instance
                                 .ref(
