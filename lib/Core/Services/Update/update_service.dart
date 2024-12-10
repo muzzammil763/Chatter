@@ -36,6 +36,7 @@ class UpdateInfo {
 }
 
 class UpdateService {
+  double? downloadProgress;
   static const String updateUrl =
       'https://raw.githubusercontent.com/muzzammil763/Chatter/master/update-config.json';
 
@@ -193,8 +194,133 @@ class UpdateService {
     );
   }
 
+  void _showPermissionDialog(
+      BuildContext context, String title, String message) {
+    showModalBottomSheet(
+      context: context,
+      isDismissible: false,
+      enableDrag: false,
+      backgroundColor: Colors.transparent,
+      useRootNavigator: true,
+      builder: (ctx) {
+        return BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
+          child: Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  margin: const EdgeInsets.only(top: 12),
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.folder_open,
+                    color: Colors.orange,
+                    size: 32,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontFamily: 'Consola',
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.orange,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                  child: Text(
+                    message,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontFamily: 'Consola',
+                      color: Colors.grey,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.grey[200],
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          onPressed: () => Navigator.pop(ctx),
+                          child: const Text(
+                            'Cancel',
+                            style: TextStyle(
+                              fontFamily: 'Consola',
+                              color: Colors.grey,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.orange,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          onPressed: () async {
+                            Navigator.pop(ctx);
+                            await openAppSettings();
+                          },
+                          child: const Text(
+                            'Open Settings',
+                            style: TextStyle(
+                              fontFamily: 'Consola',
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _downloadAndInstallUpdate(
       BuildContext context, String downloadUrl) async {
+    BuildContext? progressContext;
     try {
       if (kDebugMode) {
         print('Starting download process...');
@@ -206,7 +332,6 @@ class UpdateService {
           print('Requesting permissions...');
         }
 
-        // First, check Android version
         final androidInfo = await DeviceInfoPlugin().androidInfo;
         final androidVersion = androidInfo.version.sdkInt;
 
@@ -214,159 +339,138 @@ class UpdateService {
           print('Android SDK Version: $androidVersion');
         }
 
-        // For Android 11 (API 30) and above
         if (androidVersion >= 30) {
-          // Only request installation permission
           final installStatus =
               await Permission.requestInstallPackages.request();
-
           if (!installStatus.isGranted) {
             if (context.mounted) {
-              await showDialog(
-                context: context,
-                barrierDismissible: false,
-                builder: (context) => AlertDialog(
-                  title: const Text(
-                    'Installation Permission Required',
-                    style: TextStyle(
-                      fontFamily: 'Consola',
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  content: const Text(
-                    'Please allow app installation from this source.',
-                    style: TextStyle(fontFamily: 'Consola'),
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text(
-                        'OK',
-                        style: TextStyle(fontFamily: 'Consola'),
-                      ),
-                    ),
-                  ],
-                ),
+              _showPermissionDialog(
+                context,
+                'Installation Permission',
+                'Please allow app installation from this source to update the app.',
               );
             }
             return;
           }
-        }
-        // For Android 10 (API 29) and below
-        else {
+        } else {
           final storageStatus = await Permission.storage.request();
           final installStatus =
               await Permission.requestInstallPackages.request();
 
           if (!storageStatus.isGranted || !installStatus.isGranted) {
             if (context.mounted) {
-              bool? retry = await showDialog<bool>(
-                context: context,
-                barrierDismissible: false,
-                builder: (context) => AlertDialog(
-                  title: const Text(
-                    'Permissions Required',
-                    style: TextStyle(
-                      fontFamily: 'Consola',
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  content: const Text(
-                    'Storage and installation permissions are required to update the app.',
-                    style: TextStyle(fontFamily: 'Consola'),
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, false),
-                      child: const Text(
-                        'Cancel',
-                        style: TextStyle(fontFamily: 'Consola'),
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, true),
-                      child: const Text(
-                        'Open Settings',
-                        style: TextStyle(fontFamily: 'Consola'),
-                      ),
-                    ),
-                  ],
-                ),
+              _showPermissionDialog(
+                context,
+                'Permissions Required',
+                'Storage and installation permissions are required to update the app.',
               );
-
-              if (retry == true) {
-                await openAppSettings();
-                return;
-              }
             }
             return;
           }
         }
       }
 
-      // Show download progress
       if (!context.mounted) return;
+
       showModalBottomSheet(
         context: context,
         isDismissible: false,
         enableDrag: false,
         backgroundColor: Colors.transparent,
         useRootNavigator: true,
-        builder: (ctx) => StatefulBuilder(
-          builder: (context, setState) {
-            return BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
-              child: Container(
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      margin: const EdgeInsets.only(top: 12),
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[300],
-                        borderRadius: BorderRadius.circular(2),
-                      ),
+        isScrollControlled: true,
+        builder: (ctx) {
+          progressContext = ctx;
+          return StatefulBuilder(
+            builder: (context, setProgressState) {
+              return BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
+                child: PopScope(
+                  canPop: false,
+                  child: Container(
+                    width: MediaQuery.of(context).size.width,
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      borderRadius:
+                          BorderRadius.vertical(top: Radius.circular(20)),
                     ),
-                    const SizedBox(height: 24),
-                    const CircularProgressIndicator(),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'Downloading Update...',
-                      style: TextStyle(
-                        fontFamily: 'Consola',
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          margin: const EdgeInsets.only(top: 12),
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[300],
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withOpacity(0.1),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.download,
+                            color: Colors.blue,
+                            size: 32,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Downloading Update',
+                          style: TextStyle(
+                            fontFamily: 'Consola',
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 32),
+                          child: Text(
+                            '${(downloadProgress ?? 0).toStringAsFixed(0)}%',
+                            style: const TextStyle(
+                              fontFamily: 'Consola',
+                              color: Colors.grey,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 32),
+                          child: LinearProgressIndicator(
+                            value: (downloadProgress ?? 0) / 100,
+                            backgroundColor: Colors.grey[200],
+                            valueColor: const AlwaysStoppedAnimation<Color>(
+                                Colors.blue),
+                          ),
+                        ),
+                        const SizedBox(height: 32),
+                      ],
                     ),
-                    const SizedBox(height: 24),
-                  ],
+                  ),
                 ),
-              ),
-            );
-          },
-        ),
+              );
+            },
+          );
+        },
       );
 
-      // Get the appropriate directory based on Android version
       Directory? dir;
       if (Platform.isAndroid) {
-        if (await Permission.storage.isGranted) {
-          dir = await getExternalStorageDirectory();
-        } else {
-          dir = await getApplicationDocumentsDirectory();
-        }
+        dir = await getExternalStorageDirectory() ??
+            await getApplicationDocumentsDirectory();
       } else {
         dir = await getApplicationDocumentsDirectory();
       }
 
-      final filePath = '${dir?.path}/app-update.apk';
-
+      final filePath = '${dir.path}/app-update.apk';
       if (kDebugMode) {
         print('Download path: $filePath');
       }
@@ -380,9 +484,13 @@ class UpdateService {
         filePath,
         onReceiveProgress: (received, total) {
           if (total != -1) {
-            final progress = (received / total * 100).toStringAsFixed(0);
+            final progress = (received / total * 100);
+            if (progressContext != null && progressContext!.mounted) {
+              (progressContext! as Element).markNeedsBuild();
+              downloadProgress = progress;
+            }
             if (kDebugMode) {
-              print('Download Progress: $progress%');
+              print('Download Progress: ${progress.toStringAsFixed(0)}%');
             }
           }
         },
@@ -436,47 +544,75 @@ class UpdateService {
                 color: Colors.white,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
               ),
-              padding: const EdgeInsets.all(16),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.error, color: Colors.red, size: 48),
+                  Container(
+                    margin: const EdgeInsets.only(top: 12),
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.error_outline,
+                      color: Colors.red,
+                      size: 32,
+                    ),
+                  ),
                   const SizedBox(height: 16),
                   const Text(
                     'Download Error',
                     style: TextStyle(
                       fontFamily: 'Consola',
-                      fontSize: 18,
+                      fontSize: 20,
                       fontWeight: FontWeight.bold,
+                      color: Colors.red,
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Text(
-                    e.toString(),
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: Colors.grey,
-                      fontFamily: 'Consola',
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 32),
+                    child: Text(
+                      e.toString(),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontFamily: 'Consola',
+                        color: Colors.grey,
+                        fontSize: 16,
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                  const SizedBox(height: 24),
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
-                      ),
-                      onPressed: () => Navigator.pop(ctx),
-                      child: const Text(
-                        'Close',
-                        style: TextStyle(
-                          fontFamily: 'Consola',
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
+                        onPressed: () => Navigator.pop(ctx),
+                        child: const Text(
+                          'Close',
+                          style: TextStyle(
+                            fontFamily: 'Consola',
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ),
