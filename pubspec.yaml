@@ -1,0 +1,62 @@
+name: web_chatter_mobile
+description: "A new Flutter project."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.5.4
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+  firebase_core: ^3.8.0
+  firebase_auth: ^5.3.3
+  firebase_database: ^11.1.6
+  provider: ^6.1.2
+  intl: ^0.20.1
+  random_avatar: ^0.0.8
+  shared_preferences: ^2.3.3
+  firebase_messaging: ^15.1.5
+  flutter_local_notifications: ^18.0.1
+  http: ^1.2.2
+  googleapis_auth: ^1.6.0
+  package_info_plus: ^8.1.1
+  url_launcher: ^6.3.1
+  path_provider: ^2.1.5
+  dio: ^5.7.0
+  open_file: ^3.5.10
+  permission_handler: ^11.3.1
+  flutter_dotenv: ^5.2.1
+
+
+flutter_native_splash:
+  color: "#000000"
+  image: assets/splash.png
+  android: true
+
+  android_12:
+    image: assets/splash.png
+    icon_background_color: "#000000"
+  web: false
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  flutter_native_splash: ^2.4.3
+
+flutter:
+  uses-material-design: true
+
+  fonts:
+    - family: Consola
+      fonts:
+        - asset: assets/fonts/consola.ttf
+
+
+  assets:
+    - assets/
+    - assets/splash.png
+    - .env
