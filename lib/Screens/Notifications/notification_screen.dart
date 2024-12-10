@@ -11,6 +11,13 @@ class NotificationScreen extends StatelessWidget {
     if (currentUserId == null) return;
 
     try {
+      final currentUserSnapshot =
+          await FirebaseDatabase.instance.ref('users/$currentUserId').get();
+
+      final currentUserName =
+          (currentUserSnapshot.value as Map?)?['name'] as String?;
+      if (currentUserName == null) return;
+
       await FirebaseDatabase.instance
           .ref('users/$currentUserId/following/$userId')
           .set(true);
@@ -18,13 +25,11 @@ class NotificationScreen extends StatelessWidget {
           .ref('users/$userId/followers/$currentUserId')
           .set(true);
 
-      // Create notification for the other user
       await FirebaseDatabase.instance.ref('notifications/$userId').push().set({
         'type': 'follow',
         'senderId': currentUserId,
-        'senderName': context.read<AuthService>().currentUser?.displayName,
-        'message':
-            '${context.read<AuthService>().currentUser?.displayName} started following you back',
+        'senderName': currentUserName,
+        'message': '$currentUserName started following you back',
         'timestamp': ServerValue.timestamp,
         'read': false
       });

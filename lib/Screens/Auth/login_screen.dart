@@ -253,7 +253,7 @@ class LoginScreenState extends State<LoginScreen>
       );
     } catch (e) {
       if (!mounted) return;
-      // CustomSnackbar.show(context, e.toString(), isError: true);
+      CustomSnackbar.show(context, e.toString(), isError: true);
       debugPrint('Error: ${e.toString()}');
     } finally {
       if (mounted) setState(() => _isLoading = false);
