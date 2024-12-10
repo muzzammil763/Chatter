@@ -11,7 +11,6 @@ import 'package:web_chatter_mobile/Core/Services/Auth/auth_service.dart';
 import 'package:web_chatter_mobile/Core/Services/Notification/notification_service.dart';
 import 'package:web_chatter_mobile/Core/Services/Status/user_status_service.dart';
 import 'package:web_chatter_mobile/Core/Services/Storage/shared_prefs_service.dart';
-import 'package:web_chatter_mobile/Core/Services/Update/update_service.dart';
 import 'package:web_chatter_mobile/Screens/Admin/admin_dashboard.dart';
 import 'package:web_chatter_mobile/Screens/Chat/chat_screen.dart';
 import 'package:web_chatter_mobile/Screens/Notifications/notification_screen.dart';
@@ -250,10 +249,6 @@ class _UsersScreenState extends State<UsersScreen>
     });
   }
 
-  Future<void> _checkForUpdates() async {
-    await UpdateService().checkForUpdates(context);
-  }
-
   @override
   Widget build(BuildContext context) {
     final authService = context.watch<AuthService>();
@@ -330,20 +325,17 @@ class _UsersScreenState extends State<UsersScreen>
                   );
                 }
 
-                return GestureDetector(
-                  onTap: _checkForUpdates,
-                  child: Container(
-                    margin: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF2A2A2A),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Center(
-                      child: RandomAvatar(
-                        avatarSeed,
-                        height: 32,
-                        width: 32,
-                      ),
+                return Container(
+                  margin: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2A2A2A),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Center(
+                    child: RandomAvatar(
+                      avatarSeed,
+                      height: 32,
+                      width: 32,
                     ),
                   ),
                 );
