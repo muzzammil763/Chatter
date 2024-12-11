@@ -1,5 +1,6 @@
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class AppUpdateManagerScreen extends StatefulWidget {
   const AppUpdateManagerScreen({super.key});
@@ -100,9 +101,14 @@ class _AppUpdateManagerScreenState extends State<AppUpdateManagerScreen>
   void _showSuccessSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
+        content: Text(
+          message,
+          style: const TextStyle(fontFamily: 'Consola'),
+        ),
         backgroundColor: Colors.green,
         behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(12),
       ),
     );
   }
@@ -110,9 +116,14 @@ class _AppUpdateManagerScreenState extends State<AppUpdateManagerScreen>
   void _showErrorSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
+        content: Text(
+          message,
+          style: const TextStyle(fontFamily: 'Consola'),
+        ),
         backgroundColor: Colors.red,
         behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(12),
       ),
     );
   }
@@ -130,16 +141,40 @@ class _AppUpdateManagerScreenState extends State<AppUpdateManagerScreen>
     });
   }
 
-  Widget _buildTextField(String label, TextEditingController controller,
-      {String? Function(String?)? validator}) {
+  Widget _buildTextField(
+    String label,
+    TextEditingController controller, {
+    String? Function(String?)? validator,
+    TextInputType? keyboardType,
+    List<TextInputFormatter>? inputFormatters,
+    String? helperText,
+  }) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: 20),
       child: TextFormField(
         controller: controller,
-        style: const TextStyle(color: Colors.white),
+        style: const TextStyle(
+          color: Colors.white,
+          fontFamily: 'Consola',
+          fontSize: 16,
+        ),
+        keyboardType: keyboardType,
+        inputFormatters: inputFormatters,
+        cursorColor: Colors.white,
+        cursorWidth: 1,
+        cursorRadius: const Radius.circular(1),
         decoration: InputDecoration(
           labelText: label,
-          labelStyle: const TextStyle(color: Colors.grey),
+          helperText: helperText,
+          helperStyle: TextStyle(
+            color: Colors.grey[400],
+            fontFamily: 'Consola',
+          ),
+          labelStyle: const TextStyle(
+            color: Colors.grey,
+            fontFamily: 'Consola',
+            fontSize: 14,
+          ),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
@@ -150,10 +185,20 @@ class _AppUpdateManagerScreenState extends State<AppUpdateManagerScreen>
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Colors.blue),
+            borderSide: const BorderSide(color: Colors.blue, width: 2),
+          ),
+          errorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Colors.red),
+          ),
+          focusedErrorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Colors.red, width: 2),
           ),
           filled: true,
           fillColor: const Color(0xFF2A2A2A),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         ),
         validator: validator ??
             (value) {
@@ -162,6 +207,27 @@ class _AppUpdateManagerScreenState extends State<AppUpdateManagerScreen>
               }
               return null;
             },
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title, IconData icon) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        children: [
+          Icon(icon, color: Colors.blue, size: 24),
+          const SizedBox(width: 12),
+          Text(
+            title,
+            style: const TextStyle(
+              color: Colors.white,
+              fontFamily: 'Consola',
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -193,7 +259,7 @@ class _AppUpdateManagerScreenState extends State<AppUpdateManagerScreen>
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: Colors.blue))
           : AnimatedBuilder(
               animation: _animationController,
               builder: (context, child) {
@@ -204,7 +270,10 @@ class _AppUpdateManagerScreenState extends State<AppUpdateManagerScreen>
                     child: Form(
                       key: _formKey,
                       child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          _buildSectionTitle(
+                              'Version Information', Icons.update),
                           Container(
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
@@ -221,10 +290,16 @@ class _AppUpdateManagerScreenState extends State<AppUpdateManagerScreen>
                                 _buildTextField(
                                   'Latest Version',
                                   _latestVersionController,
+                                  helperText: 'e.g., 1.0.2',
                                 ),
                                 _buildTextField(
                                   'Latest Version Code',
                                   _latestVersionCodeController,
+                                  keyboardType: TextInputType.number,
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.digitsOnly
+                                  ],
+                                  helperText: 'Integer value (e.g., 3)',
                                   validator: (value) {
                                     if (value == null || value.isEmpty) {
                                       return 'This field is required';
@@ -238,15 +313,19 @@ class _AppUpdateManagerScreenState extends State<AppUpdateManagerScreen>
                                 _buildTextField(
                                   'Minimum Supported Version',
                                   _minSupportedVersionController,
+                                  helperText: 'e.g., 1.0.0',
                                 ),
                                 _buildTextField(
                                   'Download URL',
                                   _urlController,
+                                  keyboardType: TextInputType.url,
+                                  helperText: 'Full URL to the APK file',
                                 ),
                               ],
                             ),
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 24),
+                          _buildSectionTitle("What's New", Icons.new_releases),
                           Container(
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
@@ -261,26 +340,19 @@ class _AppUpdateManagerScreenState extends State<AppUpdateManagerScreen>
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment: MainAxisAlignment.end,
                                   children: [
-                                    const Text(
-                                      "What's New",
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontFamily: 'Consola',
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(Icons.add,
-                                          color: Colors.blue),
+                                    TextButton.icon(
+                                      icon: const Icon(Icons.add, size: 20),
+                                      label: const Text('Add Change'),
                                       onPressed: _addNewWhatsNewItem,
+                                      style: TextButton.styleFrom(
+                                        foregroundColor: Colors.blue,
+                                      ),
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: 16),
+                                const SizedBox(height: 8),
                                 ..._whatsNewControllers
                                     .asMap()
                                     .entries
@@ -295,6 +367,8 @@ class _AppUpdateManagerScreenState extends State<AppUpdateManagerScreen>
                                           child: _buildTextField(
                                             'Change ${index + 1}',
                                             controller,
+                                            helperText:
+                                                'Describe the change or feature',
                                           ),
                                         ),
                                         IconButton(
@@ -308,7 +382,7 @@ class _AppUpdateManagerScreenState extends State<AppUpdateManagerScreen>
                                       ],
                                     ),
                                   );
-                                }),
+                                }).toList(),
                               ],
                             ),
                           ),
@@ -319,10 +393,14 @@ class _AppUpdateManagerScreenState extends State<AppUpdateManagerScreen>
                 );
               },
             ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: _saveAppUpdate,
         backgroundColor: Colors.blue,
-        child: const Icon(Icons.save),
+        icon: const Icon(Icons.save),
+        label: const Text(
+          'Save Changes',
+          style: TextStyle(fontFamily: 'Consola'),
+        ),
       ),
     );
   }
