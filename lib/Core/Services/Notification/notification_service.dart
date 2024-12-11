@@ -16,7 +16,7 @@ import 'package:web_chatter_mobile/Screens/Chat/chat_screen.dart';
 import 'package:web_chatter_mobile/Screens/Users/users_screen.dart';
 
 @pragma('vm:entry-point')
-Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
   if (kDebugMode) {
     print('Handling background message: ${message.messageId}');
@@ -45,7 +45,8 @@ class NotificationService {
         "type": "service_account",
         "project_id": dotenv.env['ANDROID_PROJECT_ID'],
         "private_key_id": dotenv.env['SERVICE_ACCOUNT_PRIVATE_KEY_ID'],
-        "private_key": dotenv.env['SERVICE_ACCOUNT_PRIVATE_KEY'],
+        "private_key": (dotenv.env['SERVICE_ACCOUNT_PRIVATE_KEY'] ?? '')
+            .replaceAll('"', ''), // Remove quotes if present
         "client_email": dotenv.env['SERVICE_ACCOUNT_CLIENT_EMAIL'],
         "client_id": dotenv.env['SERVICE_ACCOUNT_CLIENT_ID'],
         "auth_uri": dotenv.env['SERVICE_ACCOUNT_AUTH_URI'],
@@ -59,7 +60,6 @@ class NotificationService {
   Future<void> initialize(GlobalKey<NavigatorState> navigationKey) async {
     if (_isInitialized) return;
     if (_isInitializing) {
-      // Wait for ongoing initialization to complete
       await _initializationCompleter.future;
       return;
     }
@@ -67,8 +67,7 @@ class NotificationService {
     _isInitializing = true;
     try {
       _navigationKey = navigationKey;
-      FirebaseMessaging.onBackgroundMessage(
-          _firebaseMessagingBackgroundHandler);
+      FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
       final settings = await _messaging.requestPermission(
         alert: true,
@@ -82,6 +81,7 @@ class NotificationService {
         _setupMessageHandlers();
         _setupAppStateListener();
         _isInitialized = true;
+        await printFCMToken();
       }
 
       _initializationCompleter.complete();
@@ -90,6 +90,13 @@ class NotificationService {
       rethrow;
     } finally {
       _isInitializing = false;
+    }
+  }
+
+  Future<void> printFCMToken() async {
+    String? token = await _messaging.getToken();
+    if (kDebugMode) {
+      print('FCM Token: $token');
     }
   }
 
@@ -127,23 +134,14 @@ class NotificationService {
     const AndroidInitializationSettings androidSettings =
         AndroidInitializationSettings('@drawable/ic_notification');
 
-    const AndroidNotificationChannelGroup channelGroup =
-        AndroidNotificationChannelGroup(
-      'chat_messages_group',
-      'Chat Messages',
-      description: 'Group for chat message notifications',
-    );
-
-    const AndroidNotificationChannel channel = AndroidNotificationChannel(
-      'chat_messages',
-      'Chat Messages',
-      description: 'Notifications for new chat messages',
+    const AndroidNotificationChannel adminChannel = AndroidNotificationChannel(
+      'high_importance_channel', // id
+      'High Importance Notifications', // title
+      description: 'This channel is used for important notifications.',
       importance: Importance.max,
       enableVibration: true,
       showBadge: true,
       playSound: true,
-      enableLights: true,
-      groupId: 'chat_messages_group',
     );
 
     const InitializationSettings initSettings =
@@ -157,12 +155,7 @@ class NotificationService {
     await _localNotifications
         .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannelGroup(channelGroup);
-
-    await _localNotifications
-        .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(channel);
+        ?.createNotificationChannel(adminChannel);
   }
 
   void _setupMessageHandlers() {
@@ -202,7 +195,7 @@ class NotificationService {
       final fcmToken = tokenSnapshot.value as String?;
       if (fcmToken == null) return;
 
-      await _sendNotificationToToken(
+      await sendNotificationToToken(
         token: fcmToken,
         title: 'New message from $senderName',
         body: messageText,
@@ -238,42 +231,29 @@ class NotificationService {
   }
 
   Future<void> _handleForegroundMessage(RemoteMessage message) async {
-    if (!_isAppInForeground) {
-      final notification = message.notification;
-      if (notification != null) {
-        var androidDetails = AndroidNotificationDetails(
-          'chat_messages',
-          'Chat Messages',
-          channelDescription: 'Notifications for new chat messages',
-          importance: Importance.max,
-          priority: Priority.high,
-          autoCancel: true,
-          enableLights: true,
-          colorized: true,
-          color: const Color(0xff000000),
-          channelShowBadge: true,
-          groupKey: 'chat_messages_group',
-          setAsGroupSummary: true,
-          additionalFlags: Int32List.fromList(<int>[0x00002000]),
-        );
+    if (kDebugMode) {
+      print("Received foreground message: ${message.notification?.title}");
+    }
 
-        var notificationDetails = NotificationDetails(android: androidDetails);
+    final notification = message.notification;
+    if (notification != null) {
+      var androidDetails = const AndroidNotificationDetails(
+        'high_importance_channel',
+        'High Importance Notifications',
+        channelDescription: 'This channel is used for important notifications.',
+        importance: Importance.max,
+        priority: Priority.high,
+        showWhen: true,
+      );
 
-        final payload = json.encode({
-          'type': 'chat_message',
-          'chatId': message.data['chatId'],
-          'senderId': message.data['senderId'],
-          'senderName': message.data['senderName'],
-        });
+      var notificationDetails = NotificationDetails(android: androidDetails);
 
-        await _localNotifications.show(
-          notification.hashCode,
-          notification.title,
-          notification.body,
-          notificationDetails,
-          payload: payload,
-        );
-      }
+      await _localNotifications.show(
+        notification.hashCode,
+        notification.title,
+        notification.body,
+        notificationDetails,
+      );
     }
   }
 
@@ -322,7 +302,7 @@ class NotificationService {
     return accessToken;
   }
 
-  Future<void> _sendNotificationToToken({
+  Future<void> sendNotificationToToken({
     required String token,
     required String title,
     required String body,

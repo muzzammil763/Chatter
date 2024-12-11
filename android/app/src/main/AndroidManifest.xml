@@ -58,7 +58,7 @@
             android:resource="@color/notification_color" />
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
-            android:value="chat_messages" />
+            android:value="high_importance_channel"/>
         <!--    adding for installing next version-->
         <provider
             android:name="androidx.core.content.FileProvider"

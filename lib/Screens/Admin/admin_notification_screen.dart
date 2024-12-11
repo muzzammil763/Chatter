@@ -1,6 +1,7 @@
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:random_avatar/random_avatar.dart';
+import 'package:web_chatter_mobile/Core/Services/Notification/notification_service.dart';
 import 'package:web_chatter_mobile/Core/Utils/UI/custom_snackbar.dart';
 
 class AdminNotificationsScreen extends StatefulWidget {
@@ -53,7 +54,12 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
       return;
     }
 
-    if (_selectedUsers.isEmpty) {
+    final selectedUsers = _selectedUsers.entries
+        .where((entry) => entry.value)
+        .map((entry) => entry.key)
+        .toList();
+
+    if (selectedUsers.isEmpty) {
       CustomSnackbar.show(
         context,
         'Please select at least one user',
@@ -62,11 +68,33 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
       return;
     }
 
-    // TODO: Implement your notification sending logic here
-    // You can access selected users' FCM tokens through users[userId]['fcmToken']
+    try {
+      for (var userId in selectedUsers) {
+        final userToken = users[userId]['fcmToken'];
+        if (userToken != null) {
+          await NotificationService().sendNotificationToToken(
+            token: userToken,
+            title: _titleController.text,
+            body: _bodyController.text,
+            data: {
+              'type': 'admin_notification',
+              'title': _titleController.text,
+              'body': _bodyController.text,
+              'imageUrl': _imageUrlController.text,
+            },
+          );
+        }
+      }
 
-    CustomSnackbar.show(context, 'Notifications sent successfully!');
-    Navigator.pop(context);
+      CustomSnackbar.show(context, 'Notifications sent successfully!');
+      Navigator.pop(context);
+    } catch (e) {
+      CustomSnackbar.show(
+        context,
+        'Error sending notifications: $e',
+        isError: true,
+      );
+    }
   }
 
   @override
