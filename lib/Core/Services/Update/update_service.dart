@@ -1,12 +1,11 @@
-import 'dart:convert';
 import 'dart:io';
 import 'dart:ui';
 
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:dio/dio.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:open_file/open_file.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
@@ -27,56 +26,23 @@ class UpdateInfo {
     required this.whatIsNew,
   });
 
-  factory UpdateInfo.fromJson(Map<String, dynamic> json) {
+  factory UpdateInfo.fromSnapshot(DataSnapshot snapshot) {
+    final data = snapshot.value as Map<dynamic, dynamic>;
     return UpdateInfo(
-      latestVersion: json['latestVersion'],
-      minSupportedVersion: json['minSupportedVersion'],
-      latestVersionCode: json['latestVersionCode'],
-      url: json['url'],
-      whatIsNew: List<String>.from(json['whatIsNew'] ?? []),
+      latestVersion: data['latestVersion'] ?? '',
+      minSupportedVersion: data['minSupportedVersion'] ?? '',
+      latestVersionCode: data['latestVersionCode'] ?? 0,
+      url: data['url'] ?? '',
+      whatIsNew: List<String>.from(data['whatIsNew'] ?? []),
     );
   }
 }
 
 class UpdateService {
   double? downloadProgress;
-  static const String updateUrl =
-      'https://raw.githubusercontent.com/muzzammil763/Chatter/master/update-config.json';
-
-  Future<void> checkForUpdates(BuildContext context) async {
-    try {
-      final packageInfo = await PackageInfo.fromPlatform();
-      if (!context.mounted) return;
-      final currentVersion = packageInfo.version;
-      if (kDebugMode) {
-        print('Current Version: $currentVersion');
-      }
-
-      final response = await http.get(Uri.parse(updateUrl));
-      if (!context.mounted) return;
-
-      if (kDebugMode) {
-        print('Response Status: ${response.statusCode}');
-        print('Response Body: ${response.body}');
-      }
-
-      if (response.statusCode == 200) {
-        final updateInfo = UpdateInfo.fromJson(json.decode(response.body));
-        if (kDebugMode) print('Latest Version: ${updateInfo.latestVersion}');
-
-        if (_isUpdateRequired(currentVersion, updateInfo.latestVersion)) {
-          if (kDebugMode) print('Update Required');
-          if (context.mounted) {
-            _showUpdateDialog(context, updateInfo.url, updateInfo.whatIsNew);
-          }
-        } else {
-          if (kDebugMode) print('No Update Required');
-        }
-      }
-    } catch (e) {
-      if (kDebugMode) print('Error checking for updates: $e');
-    }
-  }
+  final DatabaseReference _updateRef =
+      FirebaseDatabase.instance.ref('appUpdate');
+  bool _isDialogShowing = false;
 
   bool _isUpdateRequired(String currentVersion, String latestVersion) {
     List<int> current = currentVersion.split('.').map(int.parse).toList();
@@ -89,9 +55,44 @@ class UpdateService {
     return false;
   }
 
+  Future<void> checkForUpdates(BuildContext context) async {
+    try {
+      final packageInfo = await PackageInfo.fromPlatform();
+      if (!context.mounted) return;
+      final currentVersion = packageInfo.version;
+      if (kDebugMode) {
+        print('Current Version: $currentVersion');
+      }
+
+      // Listen to Firebase updates
+      _updateRef.onValue.listen((event) async {
+        if (!context.mounted) return;
+        if (event.snapshot.value == null) return;
+
+        final updateInfo = UpdateInfo.fromSnapshot(event.snapshot);
+        if (kDebugMode) print('Latest Version: ${updateInfo.latestVersion}');
+
+        // Check if current version needs update
+        if (_isUpdateRequired(currentVersion, updateInfo.latestVersion)) {
+          if (kDebugMode) print('Update Required');
+          if (context.mounted) {
+            // Show update dialog only if it's not already showing
+            if (!_isDialogShowing) {
+              _showUpdateDialog(context, updateInfo.url, updateInfo.whatIsNew);
+            }
+          }
+        } else {
+          if (kDebugMode) print('No Update Required');
+        }
+      });
+    } catch (e) {
+      if (kDebugMode) print('Error checking for updates: $e');
+    }
+  }
+
   void _showUpdateDialog(
       BuildContext context, String downloadUrl, List<String> whatIsNew) {
-    if (!context.mounted) return;
+    _isDialogShowing = true;
 
     showModalBottomSheet(
       context: context,
@@ -223,8 +224,10 @@ class UpdateService {
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        onPressed: () =>
-                            _downloadAndInstallUpdate(ctx, downloadUrl),
+                        onPressed: () {
+                          _downloadAndInstallUpdate(ctx, downloadUrl);
+                          _isDialogShowing = false;
+                        },
                         child: const Text(
                           'Update Now',
                           style: TextStyle(
@@ -242,7 +245,9 @@ class UpdateService {
           ),
         );
       },
-    );
+    ).then((_) {
+      _isDialogShowing = false;
+    });
   }
 
   void _showPermissionDialog(
