@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:web_chatter_mobile/Core/Services/Auth/auth_service.dart';
 import 'package:web_chatter_mobile/Core/Services/Chat/chat_service.dart';
-import 'package:web_chatter_mobile/Core/Services/Notification/notification_service.dart';
 import 'package:web_chatter_mobile/Core/Services/Status/user_status_service.dart';
 import 'package:web_chatter_mobile/Core/Services/Storage/shared_prefs_service.dart';
 
@@ -489,24 +488,6 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         'timestamp': ServerValue.timestamp,
         'read': isRecipientInChat,
       });
-
-      final userSnapshot =
-          await FirebaseDatabase.instance.ref('users/$currentUserId').get();
-
-      if (userSnapshot.exists) {
-        final userData = userSnapshot.value as Map<dynamic, dynamic>;
-        final senderName = userData['name'] as String? ?? 'User';
-
-        if (!isRecipientInChat) {
-          final notificationService = NotificationService();
-          await notificationService.sendChatMessage(
-            recipientUserId: widget.otherUserId,
-            senderName: senderName,
-            messageText: messageText,
-            chatId: chatId,
-          );
-        }
-      }
     } catch (e) {
       if (kDebugMode) {
         print('Error sending message: $e');
