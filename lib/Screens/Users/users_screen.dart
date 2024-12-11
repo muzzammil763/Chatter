@@ -10,7 +10,6 @@ import 'package:web_chatter_mobile/Core/Services/Auth/auth_service.dart';
 import 'package:web_chatter_mobile/Core/Services/Notification/notification_service.dart';
 import 'package:web_chatter_mobile/Core/Services/Status/user_status_service.dart';
 import 'package:web_chatter_mobile/Core/Services/Storage/shared_prefs_service.dart';
-import 'package:web_chatter_mobile/Core/Services/Update/update_service.dart';
 import 'package:web_chatter_mobile/Screens/Admin/admin_dashboard.dart';
 import 'package:web_chatter_mobile/Screens/Chat/chat_screen.dart';
 import 'package:web_chatter_mobile/Screens/Notifications/notification_screen.dart';
@@ -69,8 +68,7 @@ class _UsersScreenState extends State<UsersScreen>
     _setupAnimations();
     _initializeCache();
     _initializeNotifications();
-    final updateService = UpdateService();
-    updateService.checkForUpdates(context);
+
     _userSubscription = FirebaseDatabase.instance.ref('users').onValue.listen(
       (event) {
         if (!mounted) return;

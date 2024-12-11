@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import 'package:web_chatter_mobile/Core/Services/Auth/auth_service.dart';
 import 'package:web_chatter_mobile/Core/Services/Initialization/initialization_service.dart';
 import 'package:web_chatter_mobile/Core/Services/Notification/notification_service.dart';
+import 'package:web_chatter_mobile/Core/Services/Update/update_service.dart';
 import 'package:web_chatter_mobile/Screens/Auth/signup_screen.dart';
 import 'package:web_chatter_mobile/Screens/Users/users_screen.dart';
 import 'package:web_chatter_mobile/firebase_options.dart';
@@ -59,6 +60,8 @@ class _ChatterAppState extends State<ChatterApp> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       FirebaseMessagingService.initialize();
+      final updateService = UpdateService();
+      updateService.checkForUpdates(context);
     });
   }
 
