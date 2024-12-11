@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:web_chatter_mobile/Screens/Admin/admin_all_user.dart';
 import 'package:web_chatter_mobile/Screens/Admin/admin_analytics.dart';
+import 'package:web_chatter_mobile/Screens/Admin/admin_app_update_manager.dart';
 import 'package:web_chatter_mobile/Screens/Admin/admin_chat_monitoring.dart';
 import 'package:web_chatter_mobile/Screens/Admin/admin_dev_mode.dart';
 import 'package:web_chatter_mobile/Screens/Admin/admin_notification_screen.dart';
@@ -66,6 +67,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         'title': 'Notifications',
         'icon': Icons.notifications_outlined,
         'screen': const AdminNotificationsScreen(),
+      },
+      {
+        'title': 'App Updates',
+        'icon': Icons.system_update,
+        'screen': const AppUpdateManagerScreen(),
       },
     ];
 
