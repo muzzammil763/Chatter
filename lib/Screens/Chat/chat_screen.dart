@@ -479,7 +479,7 @@ class ChatScreenState extends State<ChatScreen>
                         borderRadius: BorderRadius.circular(32),
                       ),
                       child: IconButton(
-                        icon: Icon(
+                        icon: const Icon(
                           Icons.send_rounded,
                           color: Colors.yellow,
                         ),

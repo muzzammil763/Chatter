@@ -17,12 +17,14 @@ class UpdateInfo {
   final String minSupportedVersion;
   final int latestVersionCode;
   final String url;
+  final List<String> whatIsNew;
 
   UpdateInfo({
     required this.latestVersion,
     required this.minSupportedVersion,
     required this.latestVersionCode,
     required this.url,
+    required this.whatIsNew,
   });
 
   factory UpdateInfo.fromJson(Map<String, dynamic> json) {
@@ -31,6 +33,7 @@ class UpdateInfo {
       minSupportedVersion: json['minSupportedVersion'],
       latestVersionCode: json['latestVersionCode'],
       url: json['url'],
+      whatIsNew: List<String>.from(json['whatIsNew'] ?? []),
     );
   }
 }
@@ -61,11 +64,10 @@ class UpdateService {
         final updateInfo = UpdateInfo.fromJson(json.decode(response.body));
         if (kDebugMode) print('Latest Version: ${updateInfo.latestVersion}');
 
-        // Compare with latest version instead of minimum supported version
         if (_isUpdateRequired(currentVersion, updateInfo.latestVersion)) {
           if (kDebugMode) print('Update Required');
           if (context.mounted) {
-            _showUpdateDialog(context, updateInfo.url);
+            _showUpdateDialog(context, updateInfo.url, updateInfo.whatIsNew);
           }
         } else {
           if (kDebugMode) print('No Update Required');
@@ -87,7 +89,8 @@ class UpdateService {
     return false;
   }
 
-  void _showUpdateDialog(BuildContext context, String downloadUrl) {
+  void _showUpdateDialog(
+      BuildContext context, String downloadUrl, List<String> whatIsNew) {
     if (!context.mounted) return;
 
     showModalBottomSheet(
@@ -103,7 +106,7 @@ class UpdateService {
             canPop: false,
             child: Container(
               decoration: const BoxDecoration(
-                color: Colors.white,
+                color: Color(0xFF1A1A1A),
                 borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
               ),
               child: Column(
@@ -114,7 +117,7 @@ class UpdateService {
                     width: 40,
                     height: 4,
                     decoration: BoxDecoration(
-                      color: Colors.grey[300],
+                      color: const Color(0xFF2A2A2A),
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
@@ -154,6 +157,59 @@ class UpdateService {
                       ),
                     ),
                   ),
+                  if (whatIsNew.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 32),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF2A2A2A),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              "What's New",
+                              style: TextStyle(
+                                fontFamily: 'Consola',
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            ...whatIsNew.map((feature) => Padding(
+                                  padding: const EdgeInsets.only(bottom: 4),
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        "• ",
+                                        style: TextStyle(
+                                          color: Colors.blue,
+                                          fontFamily: 'Consola',
+                                        ),
+                                      ),
+                                      Expanded(
+                                        child: Text(
+                                          feature,
+                                          style: const TextStyle(
+                                            color: Colors.grey,
+                                            fontFamily: 'Consola',
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                )),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 24),
                   Padding(
                     padding: const EdgeInsets.all(16),
@@ -202,7 +258,7 @@ class UpdateService {
           filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
           child: Container(
             decoration: const BoxDecoration(
-              color: Colors.white,
+              color: Color(0xFF1A1A1A),
               borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
             ),
             child: Column(
@@ -213,7 +269,7 @@ class UpdateService {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.grey[300],
+                    color: const Color(0xFF2A2A2A),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -261,7 +317,7 @@ class UpdateService {
                       Expanded(
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.grey[200],
+                            backgroundColor: const Color(0xFF2A2A2A),
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
@@ -385,7 +441,7 @@ class UpdateService {
                   child: Container(
                     width: MediaQuery.of(context).size.width,
                     decoration: const BoxDecoration(
-                      color: Colors.white,
+                      color: Color(0xFF1A1A1A),
                       borderRadius:
                           BorderRadius.vertical(top: Radius.circular(20)),
                     ),
@@ -397,7 +453,7 @@ class UpdateService {
                           width: 40,
                           height: 4,
                           decoration: BoxDecoration(
-                            color: Colors.grey[300],
+                            color: const Color(0xFF2A2A2A),
                             borderRadius: BorderRadius.circular(2),
                           ),
                         ),
@@ -439,11 +495,14 @@ class UpdateService {
                         const SizedBox(height: 8),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 32),
-                          child: LinearProgressIndicator(
-                            value: (downloadProgress ?? 0) / 100,
-                            backgroundColor: Colors.grey[200],
-                            valueColor: const AlwaysStoppedAnimation<Color>(
-                                Colors.blue),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: LinearProgressIndicator(
+                              value: (downloadProgress ?? 0) / 100,
+                              backgroundColor: const Color(0xFF2A2A2A),
+                              valueColor: const AlwaysStoppedAnimation<Color>(
+                                  Colors.blue),
+                            ),
                           ),
                         ),
                         const SizedBox(height: 32),
@@ -536,7 +595,7 @@ class UpdateService {
             filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
             child: Container(
               decoration: const BoxDecoration(
-                color: Colors.white,
+                color: Color(0xFF1A1A1A),
                 borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
               ),
               child: Column(
@@ -547,7 +606,7 @@ class UpdateService {
                     width: 40,
                     height: 4,
                     decoration: BoxDecoration(
-                      color: Colors.grey[300],
+                      color: const Color(0xFF2A2A2A),
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
