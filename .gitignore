@@ -45,7 +45,13 @@ app.*.map.json
 # Environment files
 .env
 .env.prod
-android/app/google-services.json
-firebase.json
 *.env
 !.env.example
+
+# Firebase
+firebase.json
+.firebase/
+**/google-services.json
+**/GoogleService-Info.plist
+firebase-debug.log
+serviceAccountKey.json
