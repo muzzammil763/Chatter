@@ -39,7 +39,7 @@ class NotificationService {
   final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
   static const String _fcmEndpoint =
-      'https://fcm.googleapis.com/v1/projects/web-chatter-763/messages:send';
+      'https://fcm.googleapis.com/v1/projects/chatter-android-763/messages:send';
 
   Map<String, dynamic> get _serviceAccount => {
         "type": "service_account",
@@ -233,6 +233,8 @@ class NotificationService {
   Future<void> _handleForegroundMessage(RemoteMessage message) async {
     if (kDebugMode) {
       print("Received foreground message: ${message.notification?.title}");
+      print("Received foreground message: ${message.notification?.body}");
+      print("Received foreground message: ${message.data}");
     }
 
     final notification = message.notification;
