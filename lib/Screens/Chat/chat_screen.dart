@@ -23,7 +23,8 @@ class ChatScreen extends StatefulWidget {
   ChatScreenState createState() => ChatScreenState();
 }
 
-class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
+class ChatScreenState extends State<ChatScreen>
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   String? _currentUserId;
   final _messageController = TextEditingController();
   final _scrollController = ScrollController();
@@ -35,6 +36,7 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _currentUserId = context.read<AuthService>().currentUser?.uid;
 
     _slideController = AnimationController(
@@ -154,18 +156,45 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     ChatService().exitChat();
-    if (_currentUserId != null) {
-      FirebaseDatabase.instance
-          .ref('users/$_currentUserId/currentChat')
-          .remove()
-          .catchError((e) => debugPrint('Error clearing chat state: $e'));
-    }
+    _clearChatState();
     _messageController.dispose();
     _scrollController.dispose();
     _slideController.dispose();
     _fadeController.dispose();
     super.dispose();
+  }
+
+  Future<void> _clearChatState() async {
+    if (_currentUserId != null) {
+      try {
+        await FirebaseDatabase.instance
+            .ref('users/$_currentUserId/currentChat')
+            .remove();
+      } catch (e) {
+        debugPrint('Error clearing chat state: $e');
+      }
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.detached) {
+      ChatService().onAppPause();
+      _clearChatState();
+    } else if (state == AppLifecycleState.resumed) {
+      final currentUser = context.read<AuthService>().currentUser;
+      if (currentUser != null && mounted) {
+        FirebaseDatabase.instance
+            .ref('users/${currentUser.uid}/currentChat')
+            .set(getChatId(currentUser.uid, widget.otherUserId));
+      }
+    }
   }
 
   String getChatId(String uid1, String uid2) {
@@ -452,7 +481,7 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                       child: IconButton(
                         icon: Icon(
                           Icons.send_rounded,
-                          color: Colors.green.shade800,
+                          color: Colors.yellow,
                         ),
                         onPressed: () =>
                             _handleSendMessage(currentUser.uid, chatId),

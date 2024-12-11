@@ -46,7 +46,7 @@ class NotificationService {
         "project_id": dotenv.env['ANDROID_PROJECT_ID'],
         "private_key_id": dotenv.env['SERVICE_ACCOUNT_PRIVATE_KEY_ID'],
         "private_key": (dotenv.env['SERVICE_ACCOUNT_PRIVATE_KEY'] ?? '')
-            .replaceAll('"', ''), // Remove quotes if present
+            .replaceAll('"', ''),
         "client_email": dotenv.env['SERVICE_ACCOUNT_CLIENT_EMAIL'],
         "client_id": dotenv.env['SERVICE_ACCOUNT_CLIENT_ID'],
         "auth_uri": dotenv.env['SERVICE_ACCOUNT_AUTH_URI'],

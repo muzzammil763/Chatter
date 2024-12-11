@@ -5,9 +5,7 @@ import 'package:flutter/foundation.dart';
 
 class ChatService extends ChangeNotifier {
   static final ChatService _instance = ChatService._internal();
-
   factory ChatService() => _instance;
-
   ChatService._internal();
 
   String? _currentUserId;

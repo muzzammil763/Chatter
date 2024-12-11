@@ -164,8 +164,13 @@ class _UsersScreenState extends State<UsersScreen>
 
             if (isAdmin) {
               return FloatingActionButton.large(
-                shape: const CircleBorder(),
-                backgroundColor: Colors.green.shade800,
+                shape: const CircleBorder(
+                  side: BorderSide(
+                    color: Colors.white,
+                  ),
+                ),
+                elevation: 12,
+                backgroundColor: const Color(0xFF1F1F1F),
                 onPressed: () {
                   Navigator.push(
                     context,
