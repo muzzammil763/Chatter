@@ -166,7 +166,8 @@ class _UsersScreenState extends State<UsersScreen>
               return FloatingActionButton.large(
                 shape: const CircleBorder(
                   side: BorderSide(
-                    color: Colors.white,
+                    color: Color(0xFF2A2A2A),
+                    width: 2,
                   ),
                 ),
                 elevation: 12,
