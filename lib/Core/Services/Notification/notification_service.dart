@@ -12,7 +12,6 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:googleapis_auth/auth_io.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:web_chatter_mobile/Config/firebase_config.dart';
 import 'package:web_chatter_mobile/Screens/Chat/chat_screen.dart';
 import 'package:web_chatter_mobile/Screens/Users/users_screen.dart';
 
@@ -43,8 +42,8 @@ class NotificationService {
       'https://fcm.googleapis.com/v1/projects/web-chatter-763/messages:send';
 
   Map<String, dynamic> get _serviceAccount => {
-        "type": dotenv.env['SERVICE_ACCOUNT_TYPE'],
-        "project_id": dotenv.env['SERVICE_ACCOUNT_PROJECT_ID'],
+        "type": "service_account",
+        "project_id": dotenv.env['ANDROID_PROJECT_ID'],
         "private_key_id": dotenv.env['SERVICE_ACCOUNT_PRIVATE_KEY_ID'],
         "private_key": dotenv.env['SERVICE_ACCOUNT_PRIVATE_KEY'],
         "client_email": dotenv.env['SERVICE_ACCOUNT_CLIENT_EMAIL'],
@@ -396,10 +395,6 @@ class _AppLifecycleObserver extends WidgetsBindingObserver {
 class FirebaseMessagingService {
   @pragma('vm:entry-point')
   static Future<void> backgroundHandler(RemoteMessage message) async {
-    await Firebase.initializeApp(
-      options: FirebaseConfig.defaultOptions,
-    );
-
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(
         'pending_notification',
@@ -410,10 +405,6 @@ class FirebaseMessagingService {
           'senderName': message.data['senderName'],
           'messageData': message.data,
         }));
-
-    if (kDebugMode) {
-      print('Handling background message: ${message.messageId}');
-    }
   }
 
   static Future<void> initialize() async {

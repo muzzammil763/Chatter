@@ -44,5 +44,8 @@ app.*.map.json
 
 # Environment files
 .env
+.env.prod
+android/app/google-services.json
+firebase.json
 *.env
 !.env.example

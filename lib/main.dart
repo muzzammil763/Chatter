@@ -1,3 +1,4 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -8,12 +9,18 @@ import 'package:web_chatter_mobile/Core/Services/Notification/notification_servi
 import 'package:web_chatter_mobile/Core/Services/Update/update_service.dart';
 import 'package:web_chatter_mobile/Screens/Auth/signup_screen.dart';
 import 'package:web_chatter_mobile/Screens/Users/users_screen.dart';
+import 'package:web_chatter_mobile/firebase_options.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   await dotenv.load(fileName: ".env");
   WidgetsFlutterBinding.ensureInitialized();
+
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
   await InitializationService.initialize();
   await FirebaseMessagingService.initialize();
 
