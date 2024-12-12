@@ -4,10 +4,12 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:random_avatar/random_avatar.dart';
 import 'package:web_chatter_mobile/Core/Services/Auth/auth_service.dart';
 import 'package:web_chatter_mobile/Core/Services/Chat/chat_service.dart';
 import 'package:web_chatter_mobile/Core/Services/Status/user_status_service.dart';
 import 'package:web_chatter_mobile/Core/Services/Storage/shared_prefs_service.dart';
+import 'package:web_chatter_mobile/Screens/Users/user_profile_screen.dart';
 
 class ChatScreen extends StatefulWidget {
   final Map<String, dynamic> otherUser;
@@ -213,56 +215,103 @@ class ChatScreenState extends State<ChatScreen>
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back,
-            color: Colors.white,
+        leading: GestureDetector(
+          onTap: () => Navigator.pop(context),
+          child: Container(
+            padding: const EdgeInsets.all(8),
+            child: const Icon(
+              Icons.arrow_back,
+              color: Colors.white,
+            ),
           ),
-          onPressed: () => Navigator.pop(context),
         ),
+        titleSpacing: 0,
         elevation: 0,
         backgroundColor: const Color(0xFF1F1F1F),
-        title: Text(
-          widget.otherUser['name'],
-          style: const TextStyle(
-            color: Colors.white,
-            fontFamily: 'Consola',
-            fontWeight: FontWeight.bold,
+        title: GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => UserProfileScreen(
+                  user: widget.otherUser,
+                  userId: widget.otherUserId,
+                ),
+              ),
+            );
+          },
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2A2A2A),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Center(
+                  child: widget.otherUser['useSimpleAvatar'] == true ||
+                          widget.otherUser['avatarSeed'] == null ||
+                          widget.otherUser['avatarSeed'].toString().isEmpty
+                      ? Text(
+                          widget.otherUser['email'][0].toUpperCase(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontFamily: 'Consola',
+                            fontWeight: FontWeight.bold,
+                          ),
+                        )
+                      : RandomAvatar(
+                          widget.otherUser['avatarSeed'],
+                          height: 32,
+                          width: 32,
+                        ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.otherUser['name'],
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontFamily: 'Consola',
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    StreamBuilder(
+                      stream: FirebaseDatabase.instance
+                          .ref('status/${widget.otherUserId}')
+                          .onValue,
+                      builder: (context, snapshot) {
+                        if (snapshot.hasData) {
+                          final status = (snapshot.data as DatabaseEvent)
+                              .snapshot
+                              .value as Map?;
+                          final isOnline = status?['state'] == 'online';
+                          return Text(
+                            isOnline ? 'Online' : 'Offline',
+                            style: TextStyle(
+                              fontFamily: 'Consola',
+                              fontSize: 12,
+                              color: isOnline
+                                  ? Colors.green[300]
+                                  : Colors.grey[400],
+                            ),
+                          );
+                        }
+                        return const SizedBox.shrink();
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
-        actions: [
-          StreamBuilder(
-            stream: FirebaseDatabase.instance
-                .ref('status/${widget.otherUserId}')
-                .onValue,
-            builder: (context, snapshot) {
-              if (snapshot.hasData) {
-                final status =
-                    (snapshot.data as DatabaseEvent).snapshot.value as Map?;
-                final isOnline = status?['state'] == 'online';
-                return Container(
-                  margin: const EdgeInsets.only(right: 8),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF2A2A2A), // Dark container
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    isOnline ? 'Online' : 'Offline',
-                    style: TextStyle(
-                      fontFamily: 'Consola',
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: isOnline ? Colors.green[300] : Colors.grey[400],
-                    ),
-                  ),
-                );
-              }
-              return const SizedBox.shrink();
-            },
-          ),
-        ],
       ),
       body: Column(
         children: [
