@@ -212,28 +212,30 @@ class _SharedUpdateDialogState extends State<_SharedUpdateDialog> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    ...(widget.updateInfo['updateSteps'] != null
-                        ? (widget.updateInfo['updateSteps'] is List
-                            ? (widget.updateInfo['updateSteps'] as List)
-                                .asMap()
-                                .entries
-                                .map((entry) => _buildUpdateStep(
-                                    'Step ${entry.key + 1}',
-                                    entry.value.toString()))
-                            : (widget.updateInfo['updateSteps'] as Map)
-                                .values
-                                .toList()
-                                .asMap()
-                                .entries
-                                .map((entry) => _buildUpdateStep(
-                                    'Step ${entry.key + 1}',
-                                    entry.value.toString())))
-                        : [
-                            _buildUpdateStep(
-                              '1. Start Update',
-                              'Tap "Update Now" button to open Firebase App Distribution page',
-                            ),
-                          ]),
+                    _buildUpdateStep(
+                      '1. Start Update',
+                      'Tap "Update Now" button to open Firebase App Distribution page',
+                    ),
+                    _buildUpdateStep(
+                      '2. Sign Up',
+                      'Enter your email to receive the app test invitation',
+                    ),
+                    _buildUpdateStep(
+                      '3. Wait for Confirmation',
+                      'Brief loading screen will appear with a message about email invitation',
+                    ),
+                    _buildUpdateStep(
+                      '4. Check Email',
+                      'Click "Get Started" in the received email invitation',
+                    ),
+                    _buildUpdateStep(
+                      '5. Download App',
+                      'Find and click the download button for the latest APK',
+                    ),
+                    _buildUpdateStep(
+                      '6. Install',
+                      'Open APK, install new version, and enjoy updates!',
+                    ),
                     const SizedBox(height: 8),
                     Text(
                       '🔔 Pro Tip: Allow installation from unknown sources in device settings',

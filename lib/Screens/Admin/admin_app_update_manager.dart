@@ -11,8 +11,6 @@ class AppUpdateManagerScreen extends StatefulWidget {
 
 class _AppUpdateManagerScreenState extends State<AppUpdateManagerScreen>
     with SingleTickerProviderStateMixin {
-  final List<TextEditingController> _updateStepControllers = [];
-
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   final _formKey = GlobalKey<FormState>();
@@ -46,39 +44,37 @@ class _AppUpdateManagerScreenState extends State<AppUpdateManagerScreen>
   Future<void> _loadCurrentAppUpdate() async {
     setState(() => _isLoading = true);
     try {
-      final snapshot = await FirebaseDatabase.instance.ref('appUpdate').get();
+      final DatabaseReference ref = FirebaseDatabase.instance.ref('appUpdate');
+      final snapshot = await ref.get();
 
       if (snapshot.exists) {
-        final data = snapshot.value as Map<dynamic, dynamic>;
+        final data = snapshot.value;
+        if (data is Map<dynamic, dynamic>) {
+          _latestVersionController.text = data['latestVersion'] ?? '';
+          _latestVersionCodeController.text =
+              data['latestVersionCode']?.toString() ?? '';
+          _minSupportedVersionController.text =
+              data['minSupportedVersion'] ?? '';
+          _urlController.text = data['url'] ?? '';
 
-        _latestVersionController.text = data['latestVersion'] ?? '';
-        _latestVersionCodeController.text =
-            data['latestVersionCode']?.toString() ?? '';
-        _minSupportedVersionController.text = data['minSupportedVersion'] ?? '';
-        _urlController.text = data['url'] ?? '';
-
-        // Load what's new items
-        if (data['whatsNew'] != null) {
-          final whatsNew = data['whatsNew'] as Map<dynamic, dynamic>;
-          _whatsNewControllers.clear();
-          whatsNew.forEach((key, value) {
-            _whatsNewControllers
-                .add(TextEditingController(text: value.toString()));
-          });
+          // Load what's new items
+          if (data['whatsNew'] != null && data['whatsNew'] is Map) {
+            final whatsNew = data['whatsNew'] as Map<dynamic, dynamic>;
+            _whatsNewControllers.clear();
+            whatsNew.forEach((key, value) {
+              _whatsNewControllers
+                  .add(TextEditingController(text: value.toString()));
+            });
+          }
+        } else {
+          _showErrorSnackBar('Unexpected data format in app update');
         }
-
-        // Load update steps
-        if (data['updateSteps'] != null) {
-          final updateSteps = data['updateSteps'] as Map<dynamic, dynamic>;
-          _updateStepControllers.clear();
-          updateSteps.forEach((key, value) {
-            _updateStepControllers
-                .add(TextEditingController(text: value.toString()));
-          });
-        }
+      } else {
+        _showErrorSnackBar('No app update data found');
       }
     } catch (e) {
-      _showErrorSnackBar('Error loading app update data');
+      print('Error loading app update: $e'); // Add detailed error logging
+      _showErrorSnackBar('Error loading app update data: ${e.toString()}');
     }
     setState(() => _isLoading = false);
   }
@@ -93,18 +89,12 @@ class _AppUpdateManagerScreenState extends State<AppUpdateManagerScreen>
         whatsNewMap[i.toString()] = _whatsNewControllers[i].text;
       }
 
-      final updateStepsMap = <String, String>{};
-      for (int i = 0; i < _updateStepControllers.length; i++) {
-        updateStepsMap[i.toString()] = _updateStepControllers[i].text;
-      }
-
       await FirebaseDatabase.instance.ref('appUpdate').update({
         'latestVersion': _latestVersionController.text,
         'latestVersionCode': int.parse(_latestVersionCodeController.text),
         'minSupportedVersion': _minSupportedVersionController.text,
         'url': _urlController.text,
         'whatsNew': whatsNewMap,
-        'updateSteps': updateStepsMap,
       });
 
       _showSuccessSnackBar('App update information saved successfully');
@@ -112,19 +102,6 @@ class _AppUpdateManagerScreenState extends State<AppUpdateManagerScreen>
       _showErrorSnackBar('Error saving app update data');
     }
     setState(() => _isLoading = false);
-  }
-
-  void _addNewUpdateStep() {
-    setState(() {
-      _updateStepControllers.add(TextEditingController());
-    });
-  }
-
-  void _removeUpdateStep(int index) {
-    setState(() {
-      _updateStepControllers[index].dispose();
-      _updateStepControllers.removeAt(index);
-    });
   }
 
   void _showSuccessSnackBar(String message) {
@@ -415,69 +392,29 @@ class _AppUpdateManagerScreenState extends State<AppUpdateManagerScreen>
                               ],
                             ),
                           ),
-                          const SizedBox(height: 24),
-                          _buildSectionTitle('Update Steps', Icons.abc),
-                          Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF1A1A1A),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: Colors.white.withOpacity(0.1),
-                                width: 1,
+                          SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.blue,
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              onPressed: _saveAppUpdate,
+                              child: const Text(
+                                'S A V E',
+                                style: TextStyle(
+                                  fontFamily: 'Consola',
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
                               ),
                             ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.end,
-                                  children: [
-                                    TextButton.icon(
-                                      icon: const Icon(Icons.add, size: 20),
-                                      label: const Text('Add Step'),
-                                      onPressed: _addNewUpdateStep,
-                                      style: TextButton.styleFrom(
-                                        foregroundColor: Colors.blue,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 8),
-                                ..._updateStepControllers
-                                    .asMap()
-                                    .entries
-                                    .map((entry) {
-                                  final index = entry.key;
-                                  final controller = entry.value;
-                                  return Container(
-                                    margin: const EdgeInsets.only(bottom: 8),
-                                    child: Row(
-                                      children: [
-                                        Expanded(
-                                          child: _buildTextField(
-                                            'Step ${index + 1}',
-                                            controller,
-                                            helperText:
-                                                'Describe the update step',
-                                          ),
-                                        ),
-                                        IconButton(
-                                          icon: const Icon(
-                                            Icons.remove_circle_outline,
-                                            color: Colors.red,
-                                          ),
-                                          onPressed: () =>
-                                              _removeUpdateStep(index),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                }),
-                              ],
-                            ),
                           ),
-                          const SizedBox(height: 96),
                         ],
                       ),
                     ),
@@ -485,15 +422,6 @@ class _AppUpdateManagerScreenState extends State<AppUpdateManagerScreen>
                 );
               },
             ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _saveAppUpdate,
-        backgroundColor: Colors.blue,
-        icon: const Icon(Icons.save),
-        label: const Text(
-          'Save Changes',
-          style: TextStyle(fontFamily: 'Consola'),
-        ),
-      ),
     );
   }
 
@@ -505,9 +433,6 @@ class _AppUpdateManagerScreenState extends State<AppUpdateManagerScreen>
     _minSupportedVersionController.dispose();
     _urlController.dispose();
     for (var controller in _whatsNewControllers) {
-      controller.dispose();
-    }
-    for (var controller in _updateStepControllers) {
       controller.dispose();
     }
     super.dispose();
