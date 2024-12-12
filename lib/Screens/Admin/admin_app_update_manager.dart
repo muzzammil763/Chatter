@@ -15,7 +15,6 @@ class _AppUpdateManagerScreenState extends State<AppUpdateManagerScreen>
   late Animation<double> _fadeAnimation;
   final _formKey = GlobalKey<FormState>();
 
-  // Form controllers
   final _latestVersionController = TextEditingController();
   final _latestVersionCodeController = TextEditingController();
   final _minSupportedVersionController = TextEditingController();
@@ -45,8 +44,7 @@ class _AppUpdateManagerScreenState extends State<AppUpdateManagerScreen>
   Future<void> _loadCurrentAppUpdate() async {
     setState(() => _isLoading = true);
     try {
-      final snapshot =
-          await FirebaseDatabase.instance.ref().child('appUpdate').get();
+      final snapshot = await FirebaseDatabase.instance.ref('appUpdate').get();
 
       if (snapshot.exists) {
         final data = snapshot.value as Map<dynamic, dynamic>;
@@ -83,7 +81,7 @@ class _AppUpdateManagerScreenState extends State<AppUpdateManagerScreen>
         whatsNewMap[i.toString()] = _whatsNewControllers[i].text;
       }
 
-      await FirebaseDatabase.instance.ref().child('appUpdate').set({
+      await FirebaseDatabase.instance.ref('appUpdate').set({
         'latestVersion': _latestVersionController.text,
         'latestVersionCode': int.parse(_latestVersionCodeController.text),
         'minSupportedVersion': _minSupportedVersionController.text,
@@ -382,7 +380,7 @@ class _AppUpdateManagerScreenState extends State<AppUpdateManagerScreen>
                                       ],
                                     ),
                                   );
-                                }).toList(),
+                                }),
                               ],
                             ),
                           ),
