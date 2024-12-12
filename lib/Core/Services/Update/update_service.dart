@@ -4,7 +4,6 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:web_chatter_mobile/Core/Services/Auth/auth_service.dart';
 
 class UpdateService {
@@ -18,7 +17,6 @@ class UpdateService {
   Future<void> checkForUpdates(BuildContext context,
       {bool isFromSettings = false}) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
       final packageInfo = await PackageInfo.fromPlatform();
       final currentVersion = packageInfo.version;
 
@@ -27,17 +25,9 @@ class UpdateService {
 
       final updateInfo = snapshot.value as Map<dynamic, dynamic>;
       final latestVersion = updateInfo['latestVersion'] as String;
-      final dontShowKey = 'shown_$latestVersion';
-
-      // Only check for "don't show" if not coming from settings
-      if (!isFromSettings && prefs.getBool(dontShowKey) == true) return;
 
       if (_isUpdateRequired(currentVersion, latestVersion)) {
         if (context.mounted) {
-          // Mark as shown immediately when showing from startup
-          if (!isFromSettings) {
-            await prefs.setBool(dontShowKey, true);
-          }
           _showUpdateDialog(context, updateInfo, isFromSettings);
         }
       }
