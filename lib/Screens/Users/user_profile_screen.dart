@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -28,8 +26,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   int _postCount = 0;
   String _joinedDate = '';
   String _lastActive = '';
-  bool _isSendingFeedback = false;
-  final _feedbackController = TextEditingController();
   bool _isFollowing = false;
   int _followingCount = 0;
   int _followersCount = 0;
@@ -87,7 +83,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
     try {
       if (_isFollowing) {
-        // Follow user
         await Future.wait([
           FirebaseDatabase.instance
               .ref('users/$currentUserId/following/${widget.userId}')
@@ -109,7 +104,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           }),
         ]);
       } else {
-        // Unfollow user
         await Future.wait([
           FirebaseDatabase.instance
               .ref('users/$currentUserId/following/${widget.userId}')
@@ -120,9 +114,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         ]);
       }
 
-      _loadUserStats(); // Refresh counts
+      _loadUserStats();
     } catch (e) {
-      setState(() => _isFollowing = !_isFollowing); // Revert on error
+      setState(() => _isFollowing = !_isFollowing);
       if (mounted) {
         CustomSnackbar.show(
           context,
@@ -155,174 +149,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       return '${difference.inDays}d ago';
     } else {
       return _formatTimestamp(timestamp);
-    }
-  }
-
-  void _showFeedbackDialog() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
-        child: Container(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-          ),
-          decoration: const BoxDecoration(
-            color: Color(0xFF1F1F1F),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                margin: const EdgeInsets.only(top: 12),
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey[700],
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const Padding(
-                padding: EdgeInsets.all(16),
-                child: Text(
-                  'Send Feedback',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontFamily: 'Consola',
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: TextField(
-                  controller: _feedbackController,
-                  maxLines: 4,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontFamily: 'Consola',
-                  ),
-                  decoration: InputDecoration(
-                    hintText: 'Write your feedback here...',
-                    hintStyle: TextStyle(
-                      color: Colors.grey[400],
-                      fontFamily: 'Consola',
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(
-                        color: Colors.grey[700]!,
-                      ),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(
-                        color: Colors.grey[700]!,
-                      ),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(
-                        color: Colors.blue,
-                      ),
-                    ),
-                    filled: true,
-                    fillColor: const Color(0xFF2A2A2A),
-                  ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    onPressed: _isSendingFeedback ? null : _submitFeedback,
-                    child: _isSendingFeedback
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Text(
-                            'Submit Feedback',
-                            style: TextStyle(
-                              fontFamily: 'Consola',
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _submitFeedback() async {
-    if (_feedbackController.text.trim().isEmpty) {
-      CustomSnackbar.show(
-        context,
-        'Please enter your feedback',
-        isError: true,
-      );
-      return;
-    }
-
-    setState(() => _isSendingFeedback = true);
-
-    try {
-      final currentUser = context.read<AuthService>().currentUser;
-      if (currentUser == null) throw Exception('User not authenticated');
-
-      final feedbackRef = FirebaseDatabase.instance.ref('feedback').push();
-      await feedbackRef.set({
-        'userId': currentUser.uid,
-        'userName': widget.user['name'],
-        'userEmail': widget.user['email'],
-        'feedback': _feedbackController.text,
-        'timestamp': ServerValue.timestamp,
-        'read': false,
-        'status': 'pending',
-        'response': '',
-      });
-
-      if (mounted) {
-        Navigator.pop(context);
-        CustomSnackbar.show(
-          context,
-          'Feedback submitted successfully',
-          isError: false,
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        CustomSnackbar.show(
-          context,
-          'Error submitting feedback: $e',
-          isError: true,
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isSendingFeedback = false);
-      }
     }
   }
 
@@ -504,12 +330,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                         );
                       },
                     ),
-                    const SizedBox(height: 8),
-                    _buildActionButton(
-                      'Send Feedback',
-                      Icons.feedback_outlined,
-                      _showFeedbackDialog,
-                    ),
                   ],
                 ),
               ),
@@ -577,7 +397,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
   @override
   void dispose() {
-    _feedbackController.dispose();
     super.dispose();
   }
 }
