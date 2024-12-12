@@ -116,22 +116,6 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
-        actions: [
-          TextButton.icon(
-            onPressed: _toggleSelectAll,
-            icon: Icon(
-              _selectAll ? Icons.check_box : Icons.check_box_outline_blank,
-              color: Colors.white,
-            ),
-            label: const Text(
-              'Select All',
-              style: TextStyle(
-                color: Colors.white,
-                fontFamily: 'Consola',
-              ),
-            ),
-          ),
-        ],
       ),
       body: Column(
         children: [
@@ -153,6 +137,26 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
                 _buildTextField(
                   controller: _imageUrlController,
                   hint: 'Image URL (Optional)',
+                ),
+                const SizedBox(height: 16),
+                SwitchListTile(
+                  inactiveThumbColor: Colors.white,
+                  inactiveTrackColor: const Color(0xFF1A1A1A),
+                  activeTrackColor: Colors.green.shade800,
+                  activeColor: Colors.white,
+                  trackOutlineColor: const WidgetStatePropertyAll(Colors.white),
+                  hoverColor: Colors.transparent,
+                  title: const Text(
+                    'Select All Users',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontFamily: 'Consola',
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                  value: _selectAll,
+                  onChanged: (value) => _toggleSelectAll(),
                 ),
               ],
             ),
