@@ -52,14 +52,17 @@ class ChatterApp extends StatefulWidget {
 }
 
 class _ChatterAppState extends State<ChatterApp> with WidgetsBindingObserver {
+  void checkForUpdates(BuildContext context) {
+    UpdateService().checkForUpdates(context, isFromSettings: false);
+  }
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       FirebaseMessagingService.initialize();
-      final updateService = UpdateService();
-      updateService.checkForUpdates(context);
+      checkForUpdates(context);
     });
   }
 

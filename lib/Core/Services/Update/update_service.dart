@@ -3,35 +3,20 @@ import 'dart:ui';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
-class UpdateScreen extends StatelessWidget {
-  const UpdateScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'App Update',
-          style: TextStyle(fontFamily: 'Consola'),
-        ),
-      ),
-      body: Center(
-        child: ElevatedButton(
-          onPressed: () => UpdateService().checkForUpdates(context),
-          child: const Text('Check for Updates'),
-        ),
-      ),
-    );
-  }
-}
+import 'package:web_chatter_mobile/Core/Services/Auth/auth_service.dart';
 
 class UpdateService {
+  static final UpdateService _instance = UpdateService._internal();
+  factory UpdateService() => _instance;
+  UpdateService._internal();
+
   final DatabaseReference _updateRef =
       FirebaseDatabase.instance.ref('appUpdate');
 
-  Future<void> checkForUpdates(BuildContext context) async {
+  Future<void> checkForUpdates(BuildContext context,
+      {bool isFromSettings = false}) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final packageInfo = await PackageInfo.fromPlatform();
@@ -42,13 +27,18 @@ class UpdateService {
 
       final updateInfo = snapshot.value as Map<dynamic, dynamic>;
       final latestVersion = updateInfo['latestVersion'] as String;
-      final dontShowKey = 'dontShow_$latestVersion';
+      final dontShowKey = 'shown_$latestVersion';
 
-      if (prefs.getBool(dontShowKey) == true) return;
+      // Only check for "don't show" if not coming from settings
+      if (!isFromSettings && prefs.getBool(dontShowKey) == true) return;
 
       if (_isUpdateRequired(currentVersion, latestVersion)) {
         if (context.mounted) {
-          _showUpdateDialog(context, updateInfo);
+          // Mark as shown immediately when showing from startup
+          if (!isFromSettings) {
+            await prefs.setBool(dontShowKey, true);
+          }
+          _showUpdateDialog(context, updateInfo, isFromSettings);
         }
       }
     } catch (e) {
@@ -103,30 +93,72 @@ class UpdateService {
     }
   }
 
-  void _showUpdateDialog(
-      BuildContext context, Map<dynamic, dynamic> updateInfo) {
-    showModalBottomSheet(
-      context: context,
-      isDismissible: true,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => _UpdateDialog(updateInfo: updateInfo),
-    );
+  void _showUpdateDialog(BuildContext context, Map<dynamic, dynamic> updateInfo,
+      bool isFromSettings) {
+    final authService = context.read<AuthService>();
+    final currentUser = authService.currentUser;
+
+    if (currentUser == null) return;
+
+    FirebaseDatabase.instance
+        .ref('updateAccessRequests')
+        .orderByChild('email')
+        .equalTo(currentUser.email)
+        .once()
+        .then((snapshot) {
+      final hasExistingRequest = snapshot.snapshot.value != null;
+      final existingRequestData = hasExistingRequest
+          ? (snapshot.snapshot.value as Map).values.first as Map
+          : null;
+
+      showModalBottomSheet(
+        context: context,
+        isDismissible: true,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (ctx) => _SharedUpdateDialog(
+          updateInfo: updateInfo,
+          isFromSettings: isFromSettings,
+          hasExistingRequest: hasExistingRequest,
+          existingRequestData: existingRequestData,
+          userEmail: currentUser.email ?? '',
+        ),
+      );
+    });
   }
 }
 
-class _UpdateDialog extends StatefulWidget {
+class _SharedUpdateDialog extends StatefulWidget {
   final Map<dynamic, dynamic> updateInfo;
+  final bool isFromSettings;
+  final bool hasExistingRequest;
+  final Map<dynamic, dynamic>? existingRequestData;
+  final String userEmail;
 
-  const _UpdateDialog({required this.updateInfo});
+  const _SharedUpdateDialog({
+    required this.updateInfo,
+    required this.isFromSettings,
+    required this.hasExistingRequest,
+    required this.existingRequestData,
+    required this.userEmail,
+  });
 
   @override
-  State<_UpdateDialog> createState() => _UpdateDialogState();
+  State<_SharedUpdateDialog> createState() => _SharedUpdateDialogState();
 }
 
-class _UpdateDialogState extends State<_UpdateDialog> {
-  bool dontShowAgain = false;
-  final emailController = TextEditingController();
+class _SharedUpdateDialogState extends State<_SharedUpdateDialog> {
+  late final TextEditingController emailController;
+
+  @override
+  void initState() {
+    super.initState();
+    emailController = TextEditingController(
+      text: widget.hasExistingRequest
+          ? widget.existingRequestData!['email']
+          : widget.userEmail,
+    );
+  }
 
   @override
   void dispose() {
@@ -193,15 +225,19 @@ class _UpdateDialogState extends State<_UpdateDialog> {
                   color: Colors.blue.withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
-                  Icons.system_update,
+                child: Icon(
+                  widget.hasExistingRequest
+                      ? Icons.update_disabled
+                      : Icons.system_update,
                   color: Colors.blue,
                   size: 32,
                 ),
               ),
               const SizedBox(height: 16),
               Text(
-                'Version ${widget.updateInfo['latestVersion']} Available',
+                widget.hasExistingRequest
+                    ? 'Update Access Requested'
+                    : 'Version ${widget.updateInfo['latestVersion']} Available',
                 style: const TextStyle(
                   fontFamily: 'Consola',
                   fontSize: 20,
@@ -276,47 +312,50 @@ class _UpdateDialogState extends State<_UpdateDialog> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    TextField(
-                      controller: emailController,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontFamily: 'Consola',
+                    if (widget.hasExistingRequest) ...[
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.check_circle,
+                            color: Colors.green,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Request sent with email: ${widget.existingRequestData!['email']}',
+                              style: const TextStyle(
+                                color: Colors.grey,
+                                fontFamily: 'Consola',
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      decoration: InputDecoration(
-                        hintText: 'Enter your email',
-                        hintStyle: TextStyle(
-                          color: Colors.grey[400],
+                    ] else ...[
+                      TextField(
+                        controller: emailController,
+                        style: const TextStyle(
+                          color: Colors.white,
                           fontFamily: 'Consola',
                         ),
-                        filled: true,
-                        fillColor: const Color(0xFF1F1F1F),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
+                        decoration: InputDecoration(
+                          hintText: 'Enter your email',
+                          hintStyle: TextStyle(
+                            color: Colors.grey[400],
+                            fontFamily: 'Consola',
+                          ),
+                          filled: true,
+                          fillColor: const Color(0xFF1F1F1F),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
                         ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
-              ),
-              const SizedBox(height: 16),
-              CheckboxListTile(
-                value: dontShowAgain,
-                onChanged: (value) {
-                  setState(() {
-                    dontShowAgain = value ?? false;
-                  });
-                },
-                title: const Text(
-                  "Don't show this version again",
-                  style: TextStyle(
-                    color: Colors.grey,
-                    fontFamily: 'Consola',
-                  ),
-                ),
-                checkColor: const Color(0xFF1F1F1F),
-                activeColor: Colors.white,
-                side: const BorderSide(color: Colors.grey),
               ),
               Padding(
                 padding: const EdgeInsets.all(24),
@@ -331,20 +370,9 @@ class _UpdateDialogState extends State<_UpdateDialog> {
                             side: const BorderSide(color: Colors.grey),
                           ),
                         ),
-                        onPressed: () async {
-                          if (dontShowAgain) {
-                            final prefs = await SharedPreferences.getInstance();
-                            await prefs.setBool(
-                              'dontShow_${widget.updateInfo['latestVersion']}',
-                              true,
-                            );
-                          }
-                          if (mounted) {
-                            Navigator.pop(context);
-                          }
-                        },
+                        onPressed: () => Navigator.pop(context),
                         child: const Text(
-                          'Later',
+                          'Close',
                           style: TextStyle(
                             color: Colors.grey,
                             fontFamily: 'Consola',
@@ -353,43 +381,72 @@ class _UpdateDialogState extends State<_UpdateDialog> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                    if (widget.hasExistingRequest) ...[
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
-                        ),
-                        onPressed: () {
-                          if (emailController.text.trim().isEmpty) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Please enter your email',
-                                  style: TextStyle(fontFamily: 'Consola'),
-                                ),
-                              ),
+                          onPressed: () {
+                            UpdateService().requestTestAccess(
+                              context,
+                              widget.existingRequestData!['email'],
                             );
-                            return;
-                          }
-                          UpdateService().requestTestAccess(
-                            context,
-                            emailController.text,
-                          );
-                          Navigator.pop(context);
-                        },
-                        child: const Text(
-                          'Request Access',
-                          style: TextStyle(
-                            fontFamily: 'Consola',
-                            fontWeight: FontWeight.bold,
+                            Navigator.pop(context);
+                          },
+                          child: const Text(
+                            'Resend Request',
+                            style: TextStyle(
+                              fontFamily: 'Consola',
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ),
-                    ),
+                    ] else ...[
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          onPressed: () {
+                            if (emailController.text.trim().isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Please enter your email',
+                                    style: TextStyle(fontFamily: 'Consola'),
+                                  ),
+                                ),
+                              );
+                              return;
+                            }
+                            UpdateService().requestTestAccess(
+                              context,
+                              emailController.text,
+                            );
+                            Navigator.pop(context);
+                          },
+                          child: const Text(
+                            'Request Access',
+                            style: TextStyle(
+                              fontFamily: 'Consola',
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),

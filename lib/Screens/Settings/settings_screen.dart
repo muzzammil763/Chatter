@@ -1,6 +1,5 @@
 import 'dart:ui';
 
-import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:web_chatter_mobile/Core/Services/Auth/auth_service.dart';
@@ -14,242 +13,8 @@ import 'package:web_chatter_mobile/Screens/Profile/profile_screen.dart';
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
-  void _showUpdateDialog(BuildContext context) {
-    final authService = context.read<AuthService>();
-    final currentUser = authService.currentUser;
-
-    if (currentUser == null) return;
-
-    FirebaseDatabase.instance
-        .ref('updateAccessRequests')
-        .orderByChild('email')
-        .equalTo(currentUser.email)
-        .once()
-        .then((snapshot) {
-      final hasExistingRequest = snapshot.snapshot.value != null;
-      final existingRequestData = hasExistingRequest
-          ? (snapshot.snapshot.value as Map).values.first as Map
-          : null;
-      final emailController = TextEditingController(
-        text: hasExistingRequest
-            ? existingRequestData!['email']
-            : currentUser.email,
-      );
-
-      // Rest of your showModalBottomSheet code stays the same
-      showModalBottomSheet(
-        context: context,
-        isDismissible: true,
-        isScrollControlled: true,
-        backgroundColor: Colors.transparent,
-        builder: (ctx) => BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
-          child: Container(
-            padding: EdgeInsets.only(
-              bottom: MediaQuery.of(context).viewInsets.bottom,
-            ),
-            decoration: const BoxDecoration(
-              color: Color(0xFF1F1F1F),
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-            ),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    margin: const EdgeInsets.only(top: 12),
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[700],
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.withOpacity(0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      hasExistingRequest
-                          ? Icons.update_disabled
-                          : Icons.system_update,
-                      color: Colors.blue,
-                      size: 32,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    hasExistingRequest
-                        ? 'Update Access Requested'
-                        : 'Request Update Access',
-                    style: const TextStyle(
-                      fontFamily: 'Consola',
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 24),
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF2A2A2A),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (hasExistingRequest) ...[
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.check_circle,
-                                color: Colors.green,
-                                size: 20,
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  'Request sent with email: ${existingRequestData!['email']}',
-                                  style: const TextStyle(
-                                    color: Colors.grey,
-                                    fontFamily: 'Consola',
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ] else ...[
-                          TextField(
-                            controller: emailController,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontFamily: 'Consola',
-                            ),
-                            decoration: InputDecoration(
-                              hintText: 'Enter your email',
-                              hintStyle: TextStyle(
-                                color: Colors.grey[400],
-                                fontFamily: 'Consola',
-                              ),
-                              filled: true,
-                              fillColor: const Color(0xFF1F1F1F),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide.none,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: TextButton(
-                            style: TextButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                side: const BorderSide(color: Colors.grey),
-                              ),
-                            ),
-                            onPressed: () => Navigator.pop(context),
-                            child: const Text(
-                              'Close',
-                              style: TextStyle(
-                                color: Colors.grey,
-                                fontFamily: 'Consola',
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                        if (hasExistingRequest) ...[
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.blue,
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 16),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              onPressed: () {
-                                UpdateService().requestTestAccess(
-                                  context,
-                                  existingRequestData!['email'],
-                                );
-                                Navigator.pop(context);
-                              },
-                              child: const Text(
-                                'Resend Request',
-                                style: TextStyle(
-                                  fontFamily: 'Consola',
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ] else ...[
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.blue,
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 16),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              onPressed: () {
-                                if (emailController.text.trim().isEmpty) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        'Please enter your email',
-                                        style: TextStyle(fontFamily: 'Consola'),
-                                      ),
-                                    ),
-                                  );
-                                  return;
-                                }
-                                UpdateService().requestTestAccess(
-                                  context,
-                                  emailController.text,
-                                );
-                                Navigator.pop(context);
-                              },
-                              child: const Text(
-                                'Request Access',
-                                style: TextStyle(
-                                  fontFamily: 'Consola',
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
-    });
+  void checkFromSettings(BuildContext context) {
+    UpdateService().checkForUpdates(context, isFromSettings: true);
   }
 
   Future<void> _showSignOutBottomSheet(
@@ -433,7 +198,7 @@ class SettingsScreen extends StatelessWidget {
       {
         'title': 'Check Updates',
         'icon': Icons.system_update,
-        'onTap': () => _showUpdateDialog(context),
+        'onTap': () => checkFromSettings(context),
       },
       {
         'title': 'Logout',
@@ -532,3 +297,23 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 }
+
+// {
+// "appUpdate": {
+// "latestVersion": "1.0.1",
+// "whatsNew": [
+// "New user interface",
+// "Bug fixes and improvements",
+// "Performance enhancements"
+// ],
+// "updateInstructions": "Optional custom instructions for updating the app"
+// },
+// "updateAccessRequests": {
+// "request1": {
+// "email": "user@example.com",
+// "timestamp": 1638360000000,
+// "status": "pending",
+// "currentVersion": "1.0.0"
+// }
+// }
+// }
