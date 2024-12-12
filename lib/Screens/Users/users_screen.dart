@@ -205,40 +205,43 @@ class _UsersScreenState extends State<UsersScreen>
                 final avatarSeed = userData['avatarSeed'] as String?;
                 final email = userData['email'] as String;
 
-                if (useSimpleAvatar ||
-                    avatarSeed == null ||
-                    avatarSeed.isEmpty) {
-                  return Container(
+                return GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => UserProfileScreen(
+                          user: Map<String, dynamic>.from(userData),
+                          userId: currentUser!.uid,
+                          isCurrentUser: true,
+                        ),
+                      ),
+                    );
+                  },
+                  child: Container(
                     margin: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       color: const Color(0xFF2A2A2A),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Center(
-                      child: Text(
-                        email[0].toUpperCase(),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontFamily: 'Consola',
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  );
-                }
-
-                return Container(
-                  margin: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF2A2A2A),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Center(
-                    child: RandomAvatar(
-                      avatarSeed,
-                      height: 32,
-                      width: 32,
+                      child: useSimpleAvatar ||
+                              avatarSeed == null ||
+                              avatarSeed.isEmpty
+                          ? Text(
+                              email[0].toUpperCase(),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontFamily: 'Consola',
+                                fontWeight: FontWeight.bold,
+                              ),
+                            )
+                          : RandomAvatar(
+                              avatarSeed,
+                              height: 32,
+                              width: 32,
+                            ),
                     ),
                   ),
                 );
