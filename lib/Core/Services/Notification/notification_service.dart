@@ -93,6 +93,33 @@ class NotificationService {
     }
   }
 
+  Future<void> sendFeedbackResponseNotification({
+    required String userId,
+    required String response,
+    required String feedbackId,
+  }) async {
+    try {
+      final userSnapshot =
+          await FirebaseDatabase.instance.ref('users/$userId/fcmToken').get();
+
+      final fcmToken = userSnapshot.value as String?;
+      if (fcmToken == null) return;
+
+      await sendNotificationToToken(
+        token: fcmToken,
+        title: 'Feedback Response',
+        body: 'Admin has responded to your feedback',
+        data: {
+          'type': 'feedback_response',
+          'feedbackId': feedbackId,
+          'response': response,
+        },
+      );
+    } catch (e) {
+      debugPrint('Error sending feedback response notification: $e');
+    }
+  }
+
   Future<void> printFCMToken() async {
     String? token = await _messaging.getToken();
     if (kDebugMode) {
