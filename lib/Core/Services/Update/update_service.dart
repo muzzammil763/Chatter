@@ -4,6 +4,7 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:web_chatter_mobile/Core/Utils/UI/custom_snackbar.dart';
 
 class UpdateService {
   static final UpdateService _instance = UpdateService._internal();
@@ -138,19 +139,12 @@ class _SharedUpdateDialogState extends State<_SharedUpdateDialog> {
                 ),
               ),
               const SizedBox(height: 24),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.blue.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.system_update,
-                  color: Colors.blue,
-                  size: 32,
-                ),
+              const Icon(
+                Icons.system_update_alt,
+                color: Colors.blue,
+                size: 50,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
               Text(
                 'Version ${widget.updateInfo['latestVersion']} Available',
                 style: const TextStyle(
@@ -176,7 +170,7 @@ class _SharedUpdateDialogState extends State<_SharedUpdateDialog> {
                         "What's New",
                         style: TextStyle(
                           fontFamily: 'Consola',
-                          fontSize: 16,
+                          fontSize: 18,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
                         ),
@@ -197,7 +191,7 @@ class _SharedUpdateDialogState extends State<_SharedUpdateDialog> {
                   ),
                 ),
               ],
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
               Container(
                 margin: const EdgeInsets.symmetric(horizontal: 24),
                 padding: const EdgeInsets.all(16),
@@ -209,51 +203,67 @@ class _SharedUpdateDialogState extends State<_SharedUpdateDialog> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'How to Update:',
+                      'Update Process Guide',
                       style: TextStyle(
                         fontFamily: 'Consola',
-                        fontSize: 16,
+                        fontSize: 18,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
                       ),
                     ),
                     const SizedBox(height: 8),
+                    ...(widget.updateInfo['updateSteps'] != null
+                        ? (widget.updateInfo['updateSteps'] is List
+                            ? (widget.updateInfo['updateSteps'] as List)
+                                .asMap()
+                                .entries
+                                .map((entry) => _buildUpdateStep(
+                                    'Step ${entry.key + 1}',
+                                    entry.value.toString()))
+                            : (widget.updateInfo['updateSteps'] as Map)
+                                .values
+                                .toList()
+                                .asMap()
+                                .entries
+                                .map((entry) => _buildUpdateStep(
+                                    'Step ${entry.key + 1}',
+                                    entry.value.toString())))
+                        : [
+                            _buildUpdateStep(
+                              '1. Start Update',
+                              'Tap "Update Now" button to open Firebase App Distribution page',
+                            ),
+                          ]),
+                    const SizedBox(height: 8),
                     Text(
-                      widget.updateInfo['updateInstructions'] as String? ??
-                          'Click the Update Now button below to download the latest version.',
-                      style: const TextStyle(
-                        color: Colors.grey,
+                      '🔔 Pro Tip: Allow installation from unknown sources in device settings',
+                      style: TextStyle(
+                        color: Colors.blue[200],
                         fontFamily: 'Consola',
+                        fontStyle: FontStyle.italic,
                       ),
                     ),
                   ],
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.all(16),
                 child: Row(
                   children: [
-                    Expanded(
-                      child: TextButton(
+                    TextButton(
                         style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                             side: const BorderSide(color: Colors.grey),
                           ),
                         ),
                         onPressed: () => Navigator.pop(context),
-                        child: const Text(
-                          'Later',
-                          style: TextStyle(
-                            color: Colors.grey,
-                            fontFamily: 'Consola',
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
+                        child: const Icon(
+                          Icons.close,
+                          color: Colors.grey,
+                        )),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
@@ -276,20 +286,14 @@ class _SharedUpdateDialogState extends State<_SharedUpdateDialog> {
                               if (await canLaunchUrl(parsedUrl)) {
                                 await launch(url);
                               } else {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Could not launch $url'),
-                                  ),
-                                );
+                                CustomSnackbar.show(
+                                    context, 'Could not launch $url');
                               }
                             }
                           } catch (e) {
-                            debugPrint('Error launching URL: $e');
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Error launching URL: $e'),
-                              ),
-                            );
+                            // debugPrint('Error launching URL: $e');
+                            CustomSnackbar.show(
+                                context, 'Error launching URL: $e');
                           }
                           Navigator.pop(context);
                         },
@@ -298,6 +302,7 @@ class _SharedUpdateDialogState extends State<_SharedUpdateDialog> {
                           style: TextStyle(
                             fontFamily: 'Consola',
                             fontWeight: FontWeight.bold,
+                            color: Colors.white,
                           ),
                         ),
                       ),
@@ -308,6 +313,47 @@ class _SharedUpdateDialogState extends State<_SharedUpdateDialog> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildUpdateStep(String title, String description) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '• ',
+            style: TextStyle(
+              color: Colors.blue[300],
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Expanded(
+            child: RichText(
+              text: TextSpan(
+                children: [
+                  TextSpan(
+                    text: '$title: ',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Consola',
+                    ),
+                  ),
+                  TextSpan(
+                    text: description,
+                    style: const TextStyle(
+                      color: Colors.grey,
+                      fontFamily: 'Consola',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
