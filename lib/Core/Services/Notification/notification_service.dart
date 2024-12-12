@@ -29,7 +29,6 @@ class NotificationService {
   NotificationService._internal();
 
   GlobalKey<NavigatorState>? _navigationKey;
-  bool _isAppInForeground = true;
   bool _isInitialized = false;
   bool _isInitializing = false;
 
@@ -79,7 +78,6 @@ class NotificationService {
         await _setupNotifications();
         await _setupFCMToken();
         _setupMessageHandlers();
-        _setupAppStateListener();
         _isInitialized = true;
         await printFCMToken();
       }
@@ -137,14 +135,14 @@ class NotificationService {
     }
   }
 
-  void _setupAppStateListener() {
-    WidgetsBinding.instance.addObserver(
-      _AppLifecycleObserver(
-        onResume: () => _isAppInForeground = true,
-        onPause: () => _isAppInForeground = false,
-      ),
-    );
-  }
+  // void _setupAppStateListener() {
+  //   WidgetsBinding.instance.addObserver(
+  //     _AppLifecycleObserver(
+  //       onResume: () => _isAppInForeground = true,
+  //       onPause: () => _isAppInForeground = false,
+  //     ),
+  //   );
+  // }
 
   Future<String?> getFCMToken() async {
     try {
@@ -373,30 +371,6 @@ class NotificationService {
         print('Error sending notification: $e');
       }
       rethrow;
-    }
-  }
-}
-
-class _AppLifecycleObserver extends WidgetsBindingObserver {
-  final VoidCallback onResume;
-  final VoidCallback onPause;
-
-  _AppLifecycleObserver({
-    required this.onResume,
-    required this.onPause,
-  });
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    switch (state) {
-      case AppLifecycleState.resumed:
-        onResume();
-        break;
-      case AppLifecycleState.paused:
-        onPause();
-        break;
-      default:
-        break;
     }
   }
 }
