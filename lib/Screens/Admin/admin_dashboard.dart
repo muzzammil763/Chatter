@@ -6,6 +6,7 @@ import 'package:web_chatter_mobile/Screens/Admin/admin_chat_monitoring.dart';
 import 'package:web_chatter_mobile/Screens/Admin/admin_dev_mode.dart';
 import 'package:web_chatter_mobile/Screens/Admin/admin_feedback_screen.dart';
 import 'package:web_chatter_mobile/Screens/Admin/admin_notification_screen.dart';
+import 'package:web_chatter_mobile/Screens/Admin/admin_update_requests_screen.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -78,6 +79,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         'title': 'User Feedback',
         'icon': Icons.feedback_outlined,
         'screen': const AdminFeedbackScreen(),
+      },
+      {
+        'title': 'Update Request',
+        'icon': Icons.feedback_outlined,
+        'screen': const AdminUpdateRequestsScreen(),
       },
     ];
 

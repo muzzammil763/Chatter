@@ -1,48 +1,40 @@
-import 'dart:io';
 import 'dart:ui';
 
-import 'package:device_info_plus/device_info_plus.dart';
-import 'package:dio/dio.dart';
 import 'package:firebase_database/firebase_database.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:open_file/open_file.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
-
-class UpdateInfo {
-  final String latestVersion;
-  final String minSupportedVersion;
-  final int latestVersionCode;
-  final String url;
-  final List<String> whatIsNew;
-
-  UpdateInfo({
-    required this.latestVersion,
-    required this.minSupportedVersion,
-    required this.latestVersionCode,
-    required this.url,
-    required this.whatIsNew,
-  });
-
-  factory UpdateInfo.fromSnapshot(DataSnapshot snapshot) {
-    final data = snapshot.value as Map<dynamic, dynamic>;
-    return UpdateInfo(
-      latestVersion: data['latestVersion'] ?? '',
-      minSupportedVersion: data['minSupportedVersion'] ?? '',
-      latestVersionCode: data['latestVersionCode'] ?? 0,
-      url: data['url'] ?? '',
-      whatIsNew: List<String>.from(data['whatIsNew'] ?? []),
-    );
-  }
-}
+import 'package:shared_preferences/shared_preferences.dart';
 
 class UpdateService {
-  double? downloadProgress;
   final DatabaseReference _updateRef =
       FirebaseDatabase.instance.ref('appUpdate');
-  bool _isDialogShowing = false;
+
+  Future<void> checkForUpdates(BuildContext context) async {
+    try {
+      // Check if user has dismissed this version's update dialog
+      final prefs = await SharedPreferences.getInstance();
+      final packageInfo = await PackageInfo.fromPlatform();
+      final currentVersion = packageInfo.version;
+
+      final snapshot = await _updateRef.get();
+      if (!snapshot.exists || !context.mounted) return;
+
+      final updateInfo = snapshot.value as Map<dynamic, dynamic>;
+      final latestVersion = updateInfo['latestVersion'] as String;
+      final dontShowKey = 'dontShow_$latestVersion';
+
+      // If user chose not to show this version again, respect that choice
+      if (prefs.getBool(dontShowKey) == true) return;
+
+      if (_isUpdateRequired(currentVersion, latestVersion)) {
+        if (context.mounted) {
+          _showUpdateDialog(context, updateInfo);
+        }
+      }
+    } catch (e) {
+      debugPrint('Error checking for updates: $e');
+    }
+  }
 
   bool _isUpdateRequired(String currentVersion, String latestVersion) {
     List<int> current = currentVersion.split('.').map(int.parse).toList();
@@ -55,59 +47,62 @@ class UpdateService {
     return false;
   }
 
-  Future<void> checkForUpdates(BuildContext context) async {
+  Future<void> _requestTestAccess(BuildContext context, String email) async {
     try {
-      final packageInfo = await PackageInfo.fromPlatform();
-      if (!context.mounted) return;
-      final currentVersion = packageInfo.version;
-      if (kDebugMode) {
-        print('Current Version: $currentVersion');
-      }
-
-      // Listen to Firebase updates
-      _updateRef.onValue.listen((event) async {
-        if (!context.mounted) return;
-        if (event.snapshot.value == null) return;
-
-        final updateInfo = UpdateInfo.fromSnapshot(event.snapshot);
-        if (kDebugMode) print('Latest Version: ${updateInfo.latestVersion}');
-
-        // Check if current version needs update
-        if (_isUpdateRequired(currentVersion, updateInfo.latestVersion)) {
-          if (kDebugMode) print('Update Required');
-          if (context.mounted) {
-            // Show update dialog only if it's not already showing
-            if (!_isDialogShowing) {
-              _showUpdateDialog(context, updateInfo.url, updateInfo.whatIsNew);
-            }
-          }
-        } else {
-          if (kDebugMode) print('No Update Required');
-        }
+      final ref = FirebaseDatabase.instance.ref('updateAccessRequests').push();
+      await ref.set({
+        'email': email,
+        'timestamp': ServerValue.timestamp,
+        'status': 'pending',
+        'currentVersion': (await PackageInfo.fromPlatform()).version,
       });
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Access request sent successfully. An admin will review your request.',
+              style: TextStyle(fontFamily: 'Consola'),
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
     } catch (e) {
-      if (kDebugMode) print('Error checking for updates: $e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Error sending request: $e',
+              style: TextStyle(fontFamily: 'Consola'),
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
   void _showUpdateDialog(
-      BuildContext context, String downloadUrl, List<String> whatIsNew) {
-    _isDialogShowing = true;
-
+      BuildContext context, Map<dynamic, dynamic> updateInfo) {
     showModalBottomSheet(
       context: context,
-      isDismissible: false,
-      enableDrag: false,
+      isDismissible: true,
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      useRootNavigator: true,
-      builder: (ctx) {
-        return BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
-          child: PopScope(
-            canPop: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setState) {
+          bool dontShowAgain = false;
+          final emailController = TextEditingController();
+
+          return BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
             child: Container(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+              ),
               decoration: const BoxDecoration(
-                color: Color(0xFF1A1A1A),
+                color: Color(0xFF1F1F1F),
                 borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
               ),
               child: Column(
@@ -118,7 +113,7 @@ class UpdateService {
                     width: 40,
                     height: 4,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF2A2A2A),
+                      color: Colors.grey[700],
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
@@ -136,552 +131,218 @@ class UpdateService {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  const Text(
-                    'Update Available',
-                    style: TextStyle(
+                  Text(
+                    'Version ${updateInfo['latestVersion']} Available',
+                    style: const TextStyle(
                       fontFamily: 'Consola',
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
-                      color: Colors.blue,
+                      color: Colors.white,
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 32),
-                    child: Text(
-                      'A new version is available. Please update to continue using the app.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontFamily: 'Consola',
-                        color: Colors.grey,
-                        fontSize: 16,
+                  const SizedBox(height: 16),
+                  if (updateInfo['whatsNew'] != null) ...[
+                    Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 24),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF2A2A2A),
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                    ),
-                  ),
-                  if (whatIsNew.isNotEmpty) ...[
-                    const SizedBox(height: 16),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 32),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF2A2A2A),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              "What's New",
-                              style: TextStyle(
-                                fontFamily: 'Consola',
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            "What's New",
+                            style: TextStyle(
+                              fontFamily: 'Consola',
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
                             ),
-                            const SizedBox(height: 8),
-                            ...whatIsNew.map((feature) => Padding(
-                                  padding: const EdgeInsets.only(bottom: 4),
-                                  child: Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      const Text(
-                                        "• ",
-                                        style: TextStyle(
-                                          color: Colors.blue,
-                                          fontFamily: 'Consola',
-                                        ),
-                                      ),
-                                      Expanded(
-                                        child: Text(
-                                          feature,
-                                          style: const TextStyle(
-                                            color: Colors.grey,
+                          ),
+                          const SizedBox(height: 8),
+                          ...(updateInfo['whatsNew'] as Map<dynamic, dynamic>)
+                              .values
+                              .map((feature) => Padding(
+                                    padding: const EdgeInsets.only(bottom: 4),
+                                    child: Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const Text(
+                                          "• ",
+                                          style: TextStyle(
+                                            color: Colors.blue,
                                             fontFamily: 'Consola',
                                           ),
                                         ),
-                                      ),
-                                    ],
-                                  ),
-                                )),
-                          ],
-                        ),
+                                        Expanded(
+                                          child: Text(
+                                            feature.toString(),
+                                            style: const TextStyle(
+                                              color: Colors.grey,
+                                              fontFamily: 'Consola',
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ))
+                              .toList(),
+                        ],
                       ),
                     ),
                   ],
                   const SizedBox(height: 24),
-                  Padding(
+                  Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 24),
                     padding: const EdgeInsets.all(16),
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        onPressed: () {
-                          _downloadAndInstallUpdate(ctx, downloadUrl);
-                          _isDialogShowing = false;
-                        },
-                        child: const Text(
-                          'Update Now',
-                          style: TextStyle(
-                            fontFamily: 'Consola',
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    ).then((_) {
-      _isDialogShowing = false;
-    });
-  }
-
-  void _showPermissionDialog(
-      BuildContext context, String title, String message) {
-    showModalBottomSheet(
-      context: context,
-      isDismissible: false,
-      enableDrag: false,
-      backgroundColor: Colors.transparent,
-      useRootNavigator: true,
-      builder: (ctx) {
-        return BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
-          child: Container(
-            decoration: const BoxDecoration(
-              color: Color(0xFF1A1A1A),
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  margin: const EdgeInsets.only(top: 12),
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF2A2A2A),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.folder_open,
-                    color: Colors.orange,
-                    size: 32,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontFamily: 'Consola',
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.orange,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 32),
-                  child: Text(
-                    message,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontFamily: 'Consola',
-                      color: Colors.grey,
-                      fontSize: 16,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF2A2A2A),
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          onPressed: () => Navigator.pop(ctx),
-                          child: const Text(
-                            'Cancel',
-                            style: TextStyle(
-                              fontFamily: 'Consola',
-                              color: Colors.grey,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.orange,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          onPressed: () async {
-                            Navigator.pop(ctx);
-                            await openAppSettings();
-                          },
-                          child: const Text(
-                            'Open Settings',
-                            style: TextStyle(
-                              fontFamily: 'Consola',
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Future<void> _downloadAndInstallUpdate(
-      BuildContext context, String downloadUrl) async {
-    BuildContext? progressContext;
-    try {
-      if (kDebugMode) {
-        print('Starting download process...');
-        print('Download URL: $downloadUrl');
-      }
-
-      if (Platform.isAndroid) {
-        if (kDebugMode) {
-          print('Requesting permissions...');
-        }
-
-        final androidInfo = await DeviceInfoPlugin().androidInfo;
-        final androidVersion = androidInfo.version.sdkInt;
-
-        if (kDebugMode) {
-          print('Android SDK Version: $androidVersion');
-        }
-
-        if (androidVersion >= 30) {
-          final installStatus =
-              await Permission.requestInstallPackages.request();
-          if (!installStatus.isGranted) {
-            if (context.mounted) {
-              _showPermissionDialog(
-                context,
-                'Installation Permission',
-                'Please allow app installation from this source to update the app.',
-              );
-            }
-            return;
-          }
-        } else {
-          final storageStatus = await Permission.storage.request();
-          final installStatus =
-              await Permission.requestInstallPackages.request();
-
-          if (!storageStatus.isGranted || !installStatus.isGranted) {
-            if (context.mounted) {
-              _showPermissionDialog(
-                context,
-                'Permissions Required',
-                'Storage and installation permissions are required to update the app.',
-              );
-            }
-            return;
-          }
-        }
-      }
-
-      if (!context.mounted) return;
-
-      showModalBottomSheet(
-        context: context,
-        isDismissible: false,
-        enableDrag: false,
-        backgroundColor: Colors.transparent,
-        useRootNavigator: true,
-        isScrollControlled: true,
-        builder: (ctx) {
-          progressContext = ctx;
-          return StatefulBuilder(
-            builder: (context, setProgressState) {
-              return BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
-                child: PopScope(
-                  canPop: false,
-                  child: Container(
-                    width: MediaQuery.of(context).size.width,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF1A1A1A),
-                      borderRadius:
-                          BorderRadius.vertical(top: Radius.circular(20)),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF2A2A2A),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                     child: Column(
-                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(
-                          margin: const EdgeInsets.only(top: 12),
-                          width: 40,
-                          height: 4,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF2A2A2A),
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.blue.withOpacity(0.1),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.download,
-                            color: Colors.blue,
-                            size: 32,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
                         const Text(
-                          'Downloading Update',
+                          'How to Update:',
                           style: TextStyle(
                             fontFamily: 'Consola',
-                            fontSize: 20,
+                            fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: Colors.blue,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 32),
-                          child: Text(
-                            '${(downloadProgress ?? 0).toStringAsFixed(0)}%',
-                            style: const TextStyle(
-                              fontFamily: 'Consola',
-                              color: Colors.grey,
-                              fontSize: 16,
-                            ),
+                            color: Colors.white,
                           ),
                         ),
                         const SizedBox(height: 8),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 32),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: LinearProgressIndicator(
-                              value: (downloadProgress ?? 0) / 100,
-                              backgroundColor: const Color(0xFF2A2A2A),
-                              valueColor: const AlwaysStoppedAnimation<Color>(
-                                  Colors.blue),
+                        Text(
+                          updateInfo['updateInstructions'] as String? ??
+                              'To update, you need to be added to our testing program. Please submit your email below.',
+                          style: const TextStyle(
+                            color: Colors.grey,
+                            fontFamily: 'Consola',
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        TextField(
+                          controller: emailController,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontFamily: 'Consola',
+                          ),
+                          decoration: InputDecoration(
+                            hintText: 'Enter your email',
+                            hintStyle: TextStyle(
+                              color: Colors.grey[400],
+                              fontFamily: 'Consola',
+                            ),
+                            filled: true,
+                            fillColor: const Color(0xFF1F1F1F),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
                             ),
                           ),
                         ),
-                        const SizedBox(height: 32),
                       ],
                     ),
                   ),
-                ),
-              );
-            },
-          );
-        },
-      );
-
-      Directory? dir;
-      if (Platform.isAndroid) {
-        dir = await getExternalStorageDirectory() ??
-            await getApplicationDocumentsDirectory();
-      } else {
-        dir = await getApplicationDocumentsDirectory();
-      }
-
-      final filePath = '${dir.path}/app-update.apk';
-      if (kDebugMode) {
-        print('Download path: $filePath');
-      }
-
-      final dio = Dio();
-      dio.options.followRedirects = true;
-      dio.options.validateStatus = (status) => status! < 500;
-
-      final response = await dio.download(
-        downloadUrl,
-        filePath,
-        onReceiveProgress: (received, total) {
-          if (total != -1) {
-            final progress = (received / total * 100);
-            if (progressContext != null && progressContext!.mounted) {
-              (progressContext! as Element).markNeedsBuild();
-              downloadProgress = progress;
-            }
-            if (kDebugMode) {
-              print('Download Progress: ${progress.toStringAsFixed(0)}%');
-            }
-          }
-        },
-      );
-
-      if (kDebugMode) {
-        print('Download response status: ${response.statusCode}');
-      }
-
-      if (context.mounted) {
-        Navigator.pop(context);
-      }
-
-      final file = File(filePath);
-      if (!await file.exists()) {
-        throw Exception('Downloaded file not found');
-      }
-
-      if (kDebugMode) {
-        print('File size: ${await file.length()} bytes');
-      }
-
-      if (Platform.isAndroid) {
-        if (kDebugMode) {
-          print('Installing APK...');
-        }
-        final result = await OpenFile.open(filePath);
-        if (kDebugMode) {
-          print('Install result: ${result.message}');
-        }
-
-        if (result.type != ResultType.done) {
-          throw Exception('Failed to install: ${result.message}');
-        }
-      }
-    } catch (e, stackTrace) {
-      if (kDebugMode) {
-        print('Error downloading update: $e');
-        print('Stack trace: $stackTrace');
-      }
-
-      if (context.mounted) {
-        showModalBottomSheet(
-          context: context,
-          backgroundColor: Colors.transparent,
-          useRootNavigator: true,
-          builder: (ctx) => BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
-            child: Container(
-              decoration: const BoxDecoration(
-                color: Color(0xFF1A1A1A),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    margin: const EdgeInsets.only(top: 12),
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF2A2A2A),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.red.withOpacity(0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.error_outline,
-                      color: Colors.red,
-                      size: 32,
-                    ),
-                  ),
                   const SizedBox(height: 16),
-                  const Text(
-                    'Download Error',
-                    style: TextStyle(
-                      fontFamily: 'Consola',
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.red,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 32),
-                    child: Text(
-                      e.toString(),
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontFamily: 'Consola',
+                  CheckboxListTile(
+                    value: dontShowAgain,
+                    onChanged: (value) {
+                      setState(() => dontShowAgain = value ?? false);
+                    },
+                    title: const Text(
+                      "Don't show this version again",
+                      style: TextStyle(
                         color: Colors.grey,
-                        fontSize: 16,
+                        fontFamily: 'Consola',
                       ),
                     ),
+                    checkColor: const Color(0xFF1F1F1F),
+                    activeColor: Colors.white,
+                    side: const BorderSide(color: Colors.grey),
                   ),
-                  const SizedBox(height: 24),
                   Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                    padding: const EdgeInsets.all(24),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextButton(
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                side: const BorderSide(color: Colors.grey),
+                              ),
+                            ),
+                            onPressed: () async {
+                              if (dontShowAgain) {
+                                final prefs =
+                                    await SharedPreferences.getInstance();
+                                await prefs.setBool(
+                                  'dontShow_${updateInfo['latestVersion']}',
+                                  true,
+                                );
+                              }
+                              if (context.mounted) {
+                                Navigator.pop(context);
+                              }
+                            },
+                            child: const Text(
+                              'Later',
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontFamily: 'Consola',
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                           ),
                         ),
-                        onPressed: () => Navigator.pop(ctx),
-                        child: const Text(
-                          'Close',
-                          style: TextStyle(
-                            fontFamily: 'Consola',
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            onPressed: () {
+                              if (emailController.text.trim().isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Please enter your email',
+                                      style: TextStyle(fontFamily: 'Consola'),
+                                    ),
+                                  ),
+                                );
+                                return;
+                              }
+                              _requestTestAccess(context, emailController.text);
+                              Navigator.pop(context);
+                            },
+                            child: const Text(
+                              'Request Access',
+                              style: TextStyle(
+                                fontFamily: 'Consola',
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                           ),
                         ),
-                      ),
+                      ],
                     ),
                   ),
                 ],
               ),
             ),
-          ),
-        );
-      }
-    }
+          );
+        },
+      ),
+    );
   }
 }
