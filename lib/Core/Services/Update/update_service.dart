@@ -3,8 +3,7 @@ import 'dart:ui';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:provider/provider.dart';
-import 'package:web_chatter_mobile/Core/Services/Auth/auth_service.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class UpdateService {
   static final UpdateService _instance = UpdateService._internal();
@@ -47,89 +46,30 @@ class UpdateService {
     return false;
   }
 
-  Future<void> requestTestAccess(BuildContext context, String email) async {
-    try {
-      final ref = FirebaseDatabase.instance.ref('updateAccessRequests').push();
-      await ref.set({
-        'email': email,
-        'timestamp': ServerValue.timestamp,
-        'status': 'pending',
-        'currentVersion': (await PackageInfo.fromPlatform()).version,
-      });
-
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Access request sent successfully. An admin will review your request.',
-              style: TextStyle(fontFamily: 'Consola'),
-            ),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Error sending request: $e',
-              style: const TextStyle(fontFamily: 'Consola'),
-            ),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
   void _showUpdateDialog(BuildContext context, Map<dynamic, dynamic> updateInfo,
       bool isFromSettings) {
-    final authService = context.read<AuthService>();
-    final currentUser = authService.currentUser;
-
-    if (currentUser == null) return;
-
-    FirebaseDatabase.instance
-        .ref('updateAccessRequests')
-        .orderByChild('email')
-        .equalTo(currentUser.email)
-        .once()
-        .then((snapshot) {
-      final hasExistingRequest = snapshot.snapshot.value != null;
-      final existingRequestData = hasExistingRequest
-          ? (snapshot.snapshot.value as Map).values.first as Map
-          : null;
-
-      showModalBottomSheet(
-        context: context,
-        isDismissible: true,
-        isScrollControlled: true,
-        backgroundColor: Colors.transparent,
-        builder: (ctx) => _SharedUpdateDialog(
-          updateInfo: updateInfo,
-          isFromSettings: isFromSettings,
-          hasExistingRequest: hasExistingRequest,
-          existingRequestData: existingRequestData,
-          userEmail: currentUser.email ?? '',
-        ),
-      );
-    });
+    showModalBottomSheet(
+      context: context,
+      isDismissible: true,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _SharedUpdateDialog(
+        updateInfo: updateInfo,
+        isFromSettings: isFromSettings,
+        userEmail: '',
+      ),
+    );
   }
 }
 
 class _SharedUpdateDialog extends StatefulWidget {
   final Map<dynamic, dynamic> updateInfo;
   final bool isFromSettings;
-  final bool hasExistingRequest;
-  final Map<dynamic, dynamic>? existingRequestData;
   final String userEmail;
 
   const _SharedUpdateDialog({
     required this.updateInfo,
     required this.isFromSettings,
-    required this.hasExistingRequest,
-    required this.existingRequestData,
     required this.userEmail,
   });
 
@@ -138,21 +78,13 @@ class _SharedUpdateDialog extends StatefulWidget {
 }
 
 class _SharedUpdateDialogState extends State<_SharedUpdateDialog> {
-  late final TextEditingController emailController;
-
   @override
   void initState() {
     super.initState();
-    emailController = TextEditingController(
-      text: widget.hasExistingRequest
-          ? widget.existingRequestData!['email']
-          : widget.userEmail,
-    );
   }
 
   @override
   void dispose() {
-    emailController.dispose();
     super.dispose();
   }
 
@@ -188,9 +120,6 @@ class _SharedUpdateDialogState extends State<_SharedUpdateDialog> {
     return BackdropFilter(
       filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
       child: Container(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-        ),
         decoration: const BoxDecoration(
           color: Color(0xFF1F1F1F),
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -215,19 +144,15 @@ class _SharedUpdateDialogState extends State<_SharedUpdateDialog> {
                   color: Colors.blue.withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(
-                  widget.hasExistingRequest
-                      ? Icons.update_disabled
-                      : Icons.system_update,
+                child: const Icon(
+                  Icons.system_update,
                   color: Colors.blue,
                   size: 32,
                 ),
               ),
               const SizedBox(height: 16),
               Text(
-                widget.hasExistingRequest
-                    ? 'Update Access Requested'
-                    : 'Version ${widget.updateInfo['latestVersion']} Available',
+                'Version ${widget.updateInfo['latestVersion']} Available',
                 style: const TextStyle(
                   fontFamily: 'Consola',
                   fontSize: 20,
@@ -295,55 +220,12 @@ class _SharedUpdateDialogState extends State<_SharedUpdateDialog> {
                     const SizedBox(height: 8),
                     Text(
                       widget.updateInfo['updateInstructions'] as String? ??
-                          'To update, you need to be added to our testing program. Please submit your email below.',
+                          'Click the Update Now button below to download the latest version.',
                       style: const TextStyle(
                         color: Colors.grey,
                         fontFamily: 'Consola',
                       ),
                     ),
-                    const SizedBox(height: 16),
-                    if (widget.hasExistingRequest) ...[
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.check_circle,
-                            color: Colors.green,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'Request sent with email: ${widget.existingRequestData!['email']}',
-                              style: const TextStyle(
-                                color: Colors.grey,
-                                fontFamily: 'Consola',
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ] else ...[
-                      TextField(
-                        controller: emailController,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontFamily: 'Consola',
-                        ),
-                        decoration: InputDecoration(
-                          hintText: 'Enter your email',
-                          hintStyle: TextStyle(
-                            color: Colors.grey[400],
-                            fontFamily: 'Consola',
-                          ),
-                          filled: true,
-                          fillColor: const Color(0xFF1F1F1F),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide.none,
-                          ),
-                        ),
-                      ),
-                    ],
                   ],
                 ),
               ),
@@ -362,7 +244,7 @@ class _SharedUpdateDialogState extends State<_SharedUpdateDialog> {
                         ),
                         onPressed: () => Navigator.pop(context),
                         child: const Text(
-                          'Close',
+                          'Later',
                           style: TextStyle(
                             color: Colors.grey,
                             fontFamily: 'Consola',
@@ -371,72 +253,55 @@ class _SharedUpdateDialogState extends State<_SharedUpdateDialog> {
                         ),
                       ),
                     ),
-                    if (widget.hasExistingRequest) ...[
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blue,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          onPressed: () {
-                            UpdateService().requestTestAccess(
-                              context,
-                              widget.existingRequestData!['email'],
-                            );
-                            Navigator.pop(context);
-                          },
-                          child: const Text(
-                            'Resend Request',
-                            style: TextStyle(
-                              fontFamily: 'Consola',
-                              fontWeight: FontWeight.bold,
-                            ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                      ),
-                    ] else ...[
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blue,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          onPressed: () {
-                            if (emailController.text.trim().isEmpty) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Please enter your email',
-                                    style: TextStyle(fontFamily: 'Consola'),
-                                  ),
-                                ),
+                        onPressed: () async {
+                          final url = widget.updateInfo['url'] as String;
+                          try {
+                            final Uri parsedUrl = Uri.parse(url);
+                            if (await canLaunchUrl(parsedUrl)) {
+                              await launchUrl(
+                                parsedUrl,
+                                mode: LaunchMode.platformDefault,
                               );
-                              return;
+                            } else {
+                              if (await canLaunchUrl(parsedUrl)) {
+                                await launch(url);
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Could not launch $url'),
+                                  ),
+                                );
+                              }
                             }
-                            UpdateService().requestTestAccess(
-                              context,
-                              emailController.text,
+                          } catch (e) {
+                            debugPrint('Error launching URL: $e');
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Error launching URL: $e'),
+                              ),
                             );
-                            Navigator.pop(context);
-                          },
-                          child: const Text(
-                            'Request Access',
-                            style: TextStyle(
-                              fontFamily: 'Consola',
-                              fontWeight: FontWeight.bold,
-                            ),
+                          }
+                          Navigator.pop(context);
+                        },
+                        child: const Text(
+                          'Update Now',
+                          style: TextStyle(
+                            fontFamily: 'Consola',
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),
-                    ],
+                    ),
                   ],
                 ),
               ),
