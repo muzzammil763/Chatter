@@ -90,18 +90,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           FirebaseDatabase.instance
               .ref('users/${widget.userId}/followers/$currentUserId')
               .set(true),
-          FirebaseDatabase.instance
-              .ref('notifications/${widget.userId}')
-              .push()
-              .set({
-            'type': 'follow',
-            'senderId': currentUserId,
-            'senderName': context.read<AuthService>().currentUser?.displayName,
-            'message':
-                '${context.read<AuthService>().currentUser?.displayName} started following you',
-            'timestamp': ServerValue.timestamp,
-            'read': false,
-          }),
         ]);
       } else {
         await Future.wait([

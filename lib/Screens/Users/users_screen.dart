@@ -12,7 +12,6 @@ import 'package:web_chatter_mobile/Core/Services/Status/user_status_service.dart
 import 'package:web_chatter_mobile/Core/Services/Storage/shared_prefs_service.dart';
 import 'package:web_chatter_mobile/Screens/Admin/admin_dashboard.dart';
 import 'package:web_chatter_mobile/Screens/Chat/chat_screen.dart';
-import 'package:web_chatter_mobile/Screens/Notifications/notification_screen.dart';
 import 'package:web_chatter_mobile/Screens/Settings/settings_screen.dart';
 import 'package:web_chatter_mobile/Screens/Users/user_profile_screen.dart';
 
@@ -282,13 +281,6 @@ class _UsersScreenState extends State<UsersScreen>
         actions: [
           Stack(
             children: [
-              IconButton(
-                icon: const Icon(CupertinoIcons.bell_fill, color: Colors.white),
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const NotificationScreen()),
-                ),
-              ),
               StreamBuilder(
                 stream: FirebaseDatabase.instance
                     .ref(
@@ -323,7 +315,7 @@ class _UsersScreenState extends State<UsersScreen>
             ],
           ),
           IconButton(
-            icon: const Icon(CupertinoIcons.person_fill, color: Colors.white),
+            icon: const Icon(CupertinoIcons.settings, color: Colors.white),
             onPressed: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const SettingsScreen()),
