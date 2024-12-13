@@ -12,8 +12,6 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:googleapis_auth/auth_io.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:web_chatter_mobile/Screens/Chat/chat_screen.dart';
-import 'package:web_chatter_mobile/Screens/Users/users_screen.dart';
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -28,7 +26,6 @@ class NotificationService {
   factory NotificationService() => _instance;
   NotificationService._internal();
 
-  GlobalKey<NavigatorState>? _navigationKey;
   bool _isInitialized = false;
   bool _isInitializing = false;
 
@@ -65,7 +62,6 @@ class NotificationService {
 
     _isInitializing = true;
     try {
-      _navigationKey = navigationKey;
       FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
       final settings = await _messaging.requestPermission(
@@ -79,7 +75,6 @@ class NotificationService {
         await _setupFCMToken();
         _setupMessageHandlers();
         _isInitialized = true;
-        await printFCMToken();
       }
 
       _initializationCompleter.complete();
@@ -88,40 +83,6 @@ class NotificationService {
       rethrow;
     } finally {
       _isInitializing = false;
-    }
-  }
-
-  Future<void> sendFeedbackResponseNotification({
-    required String userId,
-    required String response,
-    required String feedbackId,
-  }) async {
-    try {
-      final userSnapshot =
-          await FirebaseDatabase.instance.ref('users/$userId/fcmToken').get();
-
-      final fcmToken = userSnapshot.value as String?;
-      if (fcmToken == null) return;
-
-      await sendNotificationToToken(
-        token: fcmToken,
-        title: 'Feedback Response',
-        body: 'Admin has responded to your feedback',
-        data: {
-          'type': 'feedback_response',
-          'feedbackId': feedbackId,
-          'response': response,
-        },
-      );
-    } catch (e) {
-      debugPrint('Error sending feedback response notification: $e');
-    }
-  }
-
-  Future<void> printFCMToken() async {
-    String? token = await _messaging.getToken();
-    if (kDebugMode) {
-      print('FCM Token: $token');
     }
   }
 
@@ -134,15 +95,6 @@ class NotificationService {
       return false;
     }
   }
-
-  // void _setupAppStateListener() {
-  //   WidgetsBinding.instance.addObserver(
-  //     _AppLifecycleObserver(
-  //       onResume: () => _isAppInForeground = true,
-  //       onPause: () => _isAppInForeground = false,
-  //     ),
-  //   );
-  // }
 
   Future<String?> getFCMToken() async {
     try {
@@ -160,22 +112,20 @@ class NotificationService {
         AndroidInitializationSettings('@drawable/ic_notification');
 
     const AndroidNotificationChannel adminChannel = AndroidNotificationChannel(
-      'high_importance_channel', // id
-      'High Importance Notifications', // title
+      'high_importance_channel',
+      'High Importance Notifications',
       description: 'This channel is used for important notifications.',
       importance: Importance.max,
       enableVibration: true,
       showBadge: true,
       playSound: true,
+      enableLights: true,
     );
 
     const InitializationSettings initSettings =
         InitializationSettings(android: androidSettings);
 
-    await _localNotifications.initialize(
-      initSettings,
-      onDidReceiveNotificationResponse: _handleNotificationTap,
-    );
+    await _localNotifications.initialize(initSettings);
 
     await _localNotifications
         .resolvePlatformSpecificImplementation<
@@ -185,7 +135,6 @@ class NotificationService {
 
   void _setupMessageHandlers() {
     FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
-    FirebaseMessaging.onMessageOpenedApp.listen(_handleMessageOpenedApp);
   }
 
   Future<void> _setupFCMToken() async {
@@ -206,59 +155,8 @@ class NotificationService {
     }
   }
 
-  Future<void> sendChatMessage({
-    required String recipientUserId,
-    required String senderName,
-    required String messageText,
-    required String chatId,
-  }) async {
-    try {
-      final tokenSnapshot = await FirebaseDatabase.instance
-          .ref('users/$recipientUserId/fcmToken')
-          .get();
-
-      final fcmToken = tokenSnapshot.value as String?;
-      if (fcmToken == null) return;
-
-      await sendNotificationToToken(
-        token: fcmToken,
-        title: 'New message from $senderName',
-        body: messageText,
-        data: {
-          'type': 'chat_message',
-          'chatId': chatId,
-          'senderId': FirebaseAuth.instance.currentUser?.uid,
-          'senderName': senderName,
-        },
-      );
-    } catch (e) {
-      if (kDebugMode) {
-        print('Error sending chat notification: $e');
-      }
-    }
-  }
-
-  Future<void> _handleMessageOpenedApp(RemoteMessage message) async {
-    await _handleNotificationNavigation(message.data);
-  }
-
-  Future<void> _handleNotificationTap(NotificationResponse response) async {
-    if (response.payload == null) return;
-
-    try {
-      final data = json.decode(response.payload!);
-      await _handleNotificationNavigation(data);
-    } catch (e) {
-      if (kDebugMode) {
-        print('Error handling notification tap: $e');
-      }
-    }
-  }
-
   Future<void> _handleForegroundMessage(RemoteMessage message) async {
     if (kDebugMode) {
-      print("Received foreground message: ${message.notification?.title}");
-      print("Received foreground message: ${message.notification?.body}");
       print("Received foreground message: ${message.data}");
     }
 
@@ -271,6 +169,10 @@ class NotificationService {
         importance: Importance.max,
         priority: Priority.high,
         showWhen: true,
+        playSound: true,
+        enableVibration: true,
+        enableLights: true,
+        largeIcon: DrawableResourceAndroidBitmap('@drawable/ic_notification'),
       );
 
       var notificationDetails = NotificationDetails(android: androidDetails);
@@ -281,40 +183,6 @@ class NotificationService {
         notification.body,
         notificationDetails,
       );
-    }
-  }
-
-  Future<void> _handleNotificationNavigation(Map<String, dynamic> data) async {
-    try {
-      if (data['type'] == 'chat_message') {
-        final senderId = data['senderId'];
-        if (senderId == null || _navigationKey!.currentState == null) return;
-
-        final senderSnapshot =
-            await FirebaseDatabase.instance.ref('users/$senderId').get();
-        if (!senderSnapshot.exists) return;
-
-        final senderData =
-            Map<String, dynamic>.from(senderSnapshot.value as Map);
-
-        await _navigationKey!.currentState!.pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const UsersScreen()),
-          (route) => false,
-        );
-
-        await _navigationKey!.currentState!.push(
-          MaterialPageRoute(
-            builder: (_) => ChatScreen(
-              otherUser: senderData,
-              otherUserId: senderId,
-            ),
-          ),
-        );
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print('Error in navigation: $e');
-      }
     }
   }
 
@@ -348,7 +216,7 @@ class NotificationService {
           'data': data,
           'android': {
             'notification': {
-              'channel_id': 'chat_messages',
+              'channel_id': 'high_importance_channel',
             },
           },
         },
