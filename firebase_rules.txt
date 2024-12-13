@@ -1,0 +1,37 @@
+{
+  "rules": {
+    "appUpdate": {
+      ".read": true,
+      ".write": "auth != null && root.child('users').child(auth.uid).child('isAdmin').val() == true"
+    },
+
+    "users": {
+      ".read": "auth != null",
+      "$uid": {
+        ".write": "auth != null && (auth.uid == $uid || root.child('users').child(auth.uid).child('isAdmin').val() == true)",
+        "following": {
+          ".write": "auth != null && (auth.uid == $uid || root.child('users').child(auth.uid).child('isAdmin').val() == true)"
+        },
+        "followers": {
+          ".write": "auth != null"
+        }
+      }
+    },
+    "status": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "chats": {
+      "$chatId": {
+        ".read": "auth != null && (
+          $chatId.contains(auth.uid) ||
+          root.child('users').child(auth.uid).child('isAdmin').val() == true
+        )",
+        ".write": "auth != null && (
+          $chatId.contains(auth.uid) ||
+          root.child('users').child(auth.uid).child('isAdmin').val() == true
+        )"
+      }
+    },
+  }
+}

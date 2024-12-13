@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
+import 'package:dio/dio.dart' as dio;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
@@ -11,6 +13,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:googleapis_auth/auth_io.dart';
 import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 @pragma('vm:entry-point')
@@ -125,7 +128,18 @@ class NotificationService {
     const InitializationSettings initSettings =
         InitializationSettings(android: androidSettings);
 
-    await _localNotifications.initialize(initSettings);
+    _localNotifications.initialize(
+      initSettings,
+      onDidReceiveNotificationResponse: (details) {
+        if (details.payload != null) {
+          try {
+            json.decode(details.payload!);
+          } catch (e) {
+            return;
+          }
+        }
+      },
+    );
 
     await _localNotifications
         .resolvePlatformSpecificImplementation<
@@ -155,6 +169,22 @@ class NotificationService {
     }
   }
 
+  Future<String> downloadAndSaveImage(String url) async {
+    try {
+      final response = await dio.Dio()
+          .get(url, options: dio.Options(responseType: dio.ResponseType.bytes));
+      final directory = (await getApplicationDocumentsDirectory()).path;
+      final filePath = '$directory/${url.split('/').last}';
+      final File file = File(filePath);
+
+      await file.writeAsBytes(response.data);
+      return filePath;
+    } catch (e) {
+      debugPrint('Error downloading image: $e');
+      return '';
+    }
+  }
+
   Future<void> _handleForegroundMessage(RemoteMessage message) async {
     if (kDebugMode) {
       print("Received foreground message: ${message.data}");
@@ -162,7 +192,10 @@ class NotificationService {
 
     final notification = message.notification;
     if (notification != null) {
-      var androidDetails = const AndroidNotificationDetails(
+      final imagePath =
+          await downloadAndSaveImage(message.data['imageUrl'] ?? '');
+
+      var androidDetails = AndroidNotificationDetails(
         'high_importance_channel',
         'High Importance Notifications',
         channelDescription: 'This channel is used for important notifications.',
@@ -172,7 +205,11 @@ class NotificationService {
         playSound: true,
         enableVibration: true,
         enableLights: true,
-        largeIcon: DrawableResourceAndroidBitmap('@drawable/ic_notification'),
+        styleInformation: BigPictureStyleInformation(
+          FilePathAndroidBitmap(imagePath), // Use downloaded image path
+          contentTitle: notification.title,
+          summaryText: notification.body,
+        ),
       );
 
       var notificationDetails = NotificationDetails(android: androidDetails);
@@ -182,6 +219,12 @@ class NotificationService {
         notification.title,
         notification.body,
         notificationDetails,
+        payload: json.encode({
+          'type': message.data['type'],
+          'title': message.data['title'],
+          'body': message.data['body'],
+          'imageUrl': message.data['imageUrl'],
+        }),
       );
     }
   }
