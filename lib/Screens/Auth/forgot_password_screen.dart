@@ -1,6 +1,9 @@
+import 'dart:ui';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:web_chatter_mobile/Core/Utils/UI/custom_snackbar.dart';
+import 'package:web_chatter_mobile/Screens/Auth/login_screen.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -163,62 +166,106 @@ class ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         email: _emailController.text,
       );
 
-      // Show a custom snackbar or bottom sheet
       await showModalBottomSheet(
         context: context,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-        ),
-        backgroundColor: const Color(0xFF2A2A2A),
-        builder: (BuildContext context) {
-          return Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                const Text(
-                  'Email Sent',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                const Text(
-                  'A password reset email has been sent to your email address.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.white70,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context); // Close bottom sheet dialog
-                    Navigator.pushReplacementNamed(
-                        context, '/login'); // Navigate to login screen
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+        backgroundColor: Colors.transparent,
+        builder: (ctx) => BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
+          child: StatefulBuilder(
+            builder: (context, setState) => Container(
+              decoration: const BoxDecoration(
+                color: Color(0xFF1F1F1F),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    margin: const EdgeInsets.only(top: 12),
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[700],
+                      borderRadius: BorderRadius.circular(2),
                     ),
                   ),
-                  child: const Text(
-                    'O K A Y',
+                  const SizedBox(height: 24),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.lock_reset,
+                      color: Colors.white,
+                      size: 32,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Forgot Password',
                     style: TextStyle(
                       fontFamily: 'Consola',
-                      fontSize: 16,
-                      color: Color(0xFF121212),
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
                     ),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 8),
+                  const Text(
+                    textAlign: TextAlign.center,
+                    'A password reset email has been sent to your email address. '
+                    'Please check your email and click on the link provided '
+                    'to reset your password. Make sure to follow the instructions '
+                    'in the email carefully to successfully reset your password.',
+                    style: TextStyle(
+                      fontFamily: 'Consola',
+                      color: Colors.grey,
+                      fontSize: 16,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextButton(
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                side: const BorderSide(color: Colors.grey),
+                              ),
+                            ),
+                            onPressed: () {
+                              Navigator.of(context).pushAndRemoveUntil(
+                                MaterialPageRoute(
+                                  builder: (ctx) => const LoginScreen(),
+                                ),
+                                (route) => false,
+                              );
+                            },
+                            child: const Text(
+                              'O K A Y',
+                              style: TextStyle(
+                                fontFamily: 'Consola',
+                                color: Colors.grey,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                ],
+              ),
             ),
-          );
-        },
+          ),
+        ),
       );
     } catch (e) {
       CustomSnackbar.show(context, 'Failed to send email: ${e.toString()}',
