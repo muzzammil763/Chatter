@@ -16,6 +16,9 @@ class LoginScreenState extends State<LoginScreen>
     with SingleTickerProviderStateMixin {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _emailFocusNode = FocusNode();
+  final _passwordFocusNode = FocusNode();
+  final _scrollController = ScrollController();
   bool _isLoading = false;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
@@ -31,6 +34,32 @@ class LoginScreenState extends State<LoginScreen>
       CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
     );
     _animationController.forward();
+
+    // Add listeners to focus changes
+    _emailFocusNode.addListener(() {
+      if (_emailFocusNode.hasFocus) {
+        _scrollToFocusedField(_emailFocusNode);
+      }
+    });
+
+    _passwordFocusNode.addListener(() {
+      if (_passwordFocusNode.hasFocus) {
+        _scrollToFocusedField(_passwordFocusNode);
+      }
+    });
+  }
+
+  void _scrollToFocusedField(FocusNode focusNode) {
+    // Scroll the scroll view such that the field being focused becomes visible
+    if (focusNode.hasFocus) {
+      Future.delayed(Duration(milliseconds: 100), () {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
+      });
+    }
   }
 
   @override
@@ -38,6 +67,9 @@ class LoginScreenState extends State<LoginScreen>
     _animationController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _emailFocusNode.dispose();
+    _passwordFocusNode.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -49,6 +81,7 @@ class LoginScreenState extends State<LoginScreen>
         child: FadeTransition(
           opacity: _fadeAnimation,
           child: SingleChildScrollView(
+            controller: _scrollController, // Set the scroll controller here
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24.0),
               child: Column(
@@ -91,6 +124,9 @@ class LoginScreenState extends State<LoginScreen>
                     icon: Icons.email_outlined,
                     label: 'Email address',
                     keyboardType: TextInputType.emailAddress,
+                    focusNode: _emailFocusNode,
+                    textInputAction: TextInputAction.next,
+                    onEditingComplete: () => _passwordFocusNode.requestFocus(),
                   ),
                   const SizedBox(height: 16),
                   _buildTextField(
@@ -98,6 +134,9 @@ class LoginScreenState extends State<LoginScreen>
                     icon: Icons.lock_outline,
                     label: 'Password',
                     isPassword: true,
+                    focusNode: _passwordFocusNode,
+                    textInputAction: TextInputAction.done,
+                    onEditingComplete: _handleLogin,
                   ),
                   const SizedBox(height: 24),
                   _buildLoginButton(),
@@ -162,6 +201,9 @@ class LoginScreenState extends State<LoginScreen>
     required String label,
     bool isPassword = false,
     TextInputType? keyboardType,
+    FocusNode? focusNode,
+    TextInputAction? textInputAction,
+    void Function()? onEditingComplete,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -174,6 +216,9 @@ class LoginScreenState extends State<LoginScreen>
         controller: controller,
         obscureText: isPassword,
         keyboardType: keyboardType,
+        focusNode: focusNode,
+        textInputAction: textInputAction,
+        onEditingComplete: onEditingComplete,
         style: const TextStyle(
           fontSize: 16,
           fontFamily: "Consola",
