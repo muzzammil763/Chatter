@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:web_chatter_mobile/Core/Services/Auth/auth_service.dart';
 import 'package:web_chatter_mobile/Core/Utils/UI/custom_snackbar.dart';
+import 'package:web_chatter_mobile/Screens/Auth/forgot_password_screen.dart';
 import 'package:web_chatter_mobile/Screens/Auth/signup_screen.dart';
 import 'package:web_chatter_mobile/Screens/Users/users_screen.dart';
 
@@ -50,9 +51,8 @@ class LoginScreenState extends State<LoginScreen>
   }
 
   void _scrollToFocusedField(FocusNode focusNode) {
-    // Scroll the scroll view such that the field being focused becomes visible
     if (focusNode.hasFocus) {
-      Future.delayed(Duration(milliseconds: 100), () {
+      Future.delayed(const Duration(milliseconds: 100), () {
         _scrollController.animateTo(
           _scrollController.position.maxScrollExtent,
           duration: const Duration(milliseconds: 300),
@@ -138,7 +138,35 @@ class LoginScreenState extends State<LoginScreen>
                     textInputAction: TextInputAction.done,
                     onEditingComplete: _handleLogin,
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) => const ForgotPasswordScreen(),
+                      ));
+                    },
+                    child: RichText(
+                      text: const TextSpan(
+                        text: 'Forgot your password? ',
+                        style: TextStyle(
+                          fontFamily: 'Consola',
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.normal,
+                        ),
+                        children: [
+                          TextSpan(
+                            text: 'Reset here',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                   _buildLoginButton(),
                   const SizedBox(height: 16),
                   TextButton(
