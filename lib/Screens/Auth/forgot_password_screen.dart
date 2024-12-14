@@ -26,6 +26,29 @@ class ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      floatingActionButton: Align(
+        alignment: Alignment.topLeft,
+        child: Padding(
+          padding: const EdgeInsets.only(top: 64, left: 32),
+          child: FloatingActionButton(
+            heroTag: 'backButton',
+            onPressed: () {
+              Navigator.pop(context);
+            },
+            backgroundColor: const Color(0xFF1F1F1F),
+            shape: const CircleBorder(
+              side: BorderSide(
+                color: Color(0xFF2A2A2A),
+                width: 2,
+              ),
+            ),
+            child: const Icon(
+              Icons.arrow_back,
+              color: Colors.white,
+            ),
+          ),
+        ),
+      ),
       backgroundColor: const Color(0xFF121212),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -124,6 +147,7 @@ class ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           backgroundColor: Colors.white,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
+            side: const BorderSide(color: Colors.white),
           ),
           elevation: 0,
         ),
@@ -150,6 +174,9 @@ class ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   }
 
   Future<void> _handlePasswordReset() async {
+    // Hide the keyboard first
+    FocusScope.of(context).unfocus();
+
     if (_emailController.text.isEmpty) {
       CustomSnackbar.show(
         context,

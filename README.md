@@ -1,7 +1,7 @@
 **# Chatter Mobile
 
 <p align="center">
-  <img src="assets/app_icon.png" width="100" alt="Web Chatter Logo"/>
+  <img src="assets/logo.png" width="100" alt="Web Chatter Logo"/>
 </p>
 
 A modern real-time chat application built with Flutter and Firebase, featuring a sleek dark theme
