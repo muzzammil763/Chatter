@@ -21,6 +21,7 @@ class SignUpScreenState extends State<SignUpScreen>
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<double> _nameFieldAnimation;
+  bool _isPasswordVisible = false;
 
   @override
   void initState() {
@@ -72,11 +73,7 @@ class SignUpScreenState extends State<SignUpScreen>
                       color: const Color(0xFF1F1F1F),
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: const Icon(
-                      Icons.chat_bubble_outline,
-                      color: Colors.white,
-                      size: 45,
-                    ),
+                    child: Image.asset('assets/logo.png'),
                   ),
                   const SizedBox(height: 16),
                   const Text(
@@ -95,7 +92,7 @@ class SignUpScreenState extends State<SignUpScreen>
                     style: TextStyle(
                       fontFamily: "Consola",
                       fontSize: 16,
-                      color: Colors.grey,
+                      color: Colors.white70,
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -154,12 +151,24 @@ class SignUpScreenState extends State<SignUpScreen>
                         ),
                       );
                     },
-                    child: const Text(
-                      'Already have an account? Sign In',
-                      style: TextStyle(
-                        fontFamily: 'Consola',
-                        color: Colors.white,
-                        fontSize: 14,
+                    child: RichText(
+                      text: const TextSpan(
+                        text: 'Already have an account? ',
+                        style: TextStyle(
+                          fontFamily: 'Consola',
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.normal,
+                        ),
+                        children: [
+                          TextSpan(
+                            text: 'Sign In',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -188,7 +197,7 @@ class SignUpScreenState extends State<SignUpScreen>
         cursorColor: Colors.white,
         cursorHeight: 24,
         controller: controller,
-        obscureText: isPassword,
+        obscureText: isPassword ? !_isPasswordVisible : false,
         keyboardType: keyboardType,
         style: const TextStyle(
           fontSize: 16,
@@ -200,13 +209,28 @@ class SignUpScreenState extends State<SignUpScreen>
           border: InputBorder.none,
           hintText: label,
           hintStyle: const TextStyle(
-            color: Colors.grey,
+            color: Colors.white70,
             fontFamily: "Consola",
           ),
           prefixIcon: Icon(
             icon,
-            color: Colors.grey,
+            color: Colors.white70,
           ),
+          suffixIcon: isPassword
+              ? IconButton(
+                  icon: Icon(
+                    _isPasswordVisible
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
+                    color: Colors.white70,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _isPasswordVisible = !_isPasswordVisible;
+                    });
+                  },
+                )
+              : null,
         ),
       ),
     );
@@ -240,8 +264,8 @@ class SignUpScreenState extends State<SignUpScreen>
                   'C O N T I N U E',
                   style: TextStyle(
                     fontFamily: 'Consola',
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w900,
                     color: Color(0xFF121212),
                   ),
                 ),

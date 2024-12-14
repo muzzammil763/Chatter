@@ -33,6 +33,6 @@ class CustomPageRoute<T> extends PageRouteBuilder<T> {
               ),
             );
           },
-          transitionDuration: const Duration(milliseconds: 300),
+          transitionDuration: const Duration(milliseconds: 200),
         );
 }

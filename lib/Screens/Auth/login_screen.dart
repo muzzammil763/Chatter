@@ -63,11 +63,7 @@ class LoginScreenState extends State<LoginScreen>
                       color: const Color(0xFF1F1F1F),
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: const Icon(
-                      Icons.chat_bubble_outline,
-                      color: Colors.white,
-                      size: 45,
-                    ),
+                    child: Image.asset('assets/logo.png'),
                   ),
                   const SizedBox(height: 16),
                   const Text(
@@ -130,12 +126,24 @@ class LoginScreenState extends State<LoginScreen>
                         ),
                       );
                     },
-                    child: const Text(
-                      'Don\'t have an account? Sign Up',
-                      style: TextStyle(
-                        fontFamily: 'Consola',
-                        color: Colors.white,
-                        fontSize: 14,
+                    child: RichText(
+                      text: const TextSpan(
+                        text: 'Don\'t have an account? ',
+                        style: TextStyle(
+                          fontFamily: 'Consola',
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.normal,
+                        ),
+                        children: [
+                          TextSpan(
+                            text: 'Sign Up',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -176,12 +184,12 @@ class LoginScreenState extends State<LoginScreen>
           border: InputBorder.none,
           hintText: label,
           hintStyle: const TextStyle(
-            color: Colors.grey,
+            color: Colors.white70,
             fontFamily: "Consola",
           ),
           prefixIcon: Icon(
             icon,
-            color: Colors.grey,
+            color: Colors.white70,
           ),
         ),
       ),
@@ -216,8 +224,8 @@ class LoginScreenState extends State<LoginScreen>
                   'C O N T I N U E',
                   style: TextStyle(
                     fontFamily: 'Consola',
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w900,
                     color: Color(0xFF121212),
                   ),
                 ),
