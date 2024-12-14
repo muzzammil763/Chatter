@@ -150,6 +150,7 @@ class LoginScreenState extends State<LoginScreen>
                   TextButton(
                     onPressed: () {
                       FocusScope.of(context).unfocus(); // Dismiss keyboard
+                      _resetTextFields();
                       Navigator.of(context)
                           .push(
                         PageRouteBuilder(
@@ -202,6 +203,8 @@ class LoginScreenState extends State<LoginScreen>
                   const SizedBox(height: 16),
                   TextButton(
                     onPressed: () {
+                      FocusScope.of(context).unfocus(); // Dismiss keyboard
+                      _resetTextFields();
                       Navigator.of(context).push(
                         PageRouteBuilder(
                           pageBuilder:

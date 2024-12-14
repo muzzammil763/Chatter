@@ -33,6 +33,8 @@ class ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           child: FloatingActionButton(
             heroTag: 'backButton',
             onPressed: () {
+              FocusScope.of(context).unfocus();
+              _emailController.clear();
               Navigator.pop(context);
             },
             backgroundColor: const Color(0xFF1F1F1F),
@@ -176,9 +178,6 @@ class ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   }
 
   Future<void> _handlePasswordReset() async {
-    // Hide the keyboard first
-    FocusScope.of(context).unfocus();
-
     if (_emailController.text.isEmpty) {
       CustomSnackbar.show(
         context,

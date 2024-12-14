@@ -176,6 +176,10 @@ class SignUpScreenState extends State<SignUpScreen>
                   const SizedBox(height: 16),
                   TextButton(
                     onPressed: () {
+                      FocusScope.of(context).unfocus();
+                      _emailController.clear();
+                      _passwordController.clear();
+                      _nameController.clear();
                       Navigator.of(context).push(
                         PageRouteBuilder(
                           pageBuilder:
