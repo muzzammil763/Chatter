@@ -2,7 +2,6 @@ import 'dart:ui';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:web_chatter_mobile/Core/Utils/UI/custom_snackbar.dart';
 import 'package:web_chatter_mobile/Screens/Auth/login_screen.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
@@ -178,12 +177,16 @@ class ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   }
 
   Future<void> _handlePasswordReset() async {
+    FocusScope.of(context).unfocus();
     if (_emailController.text.isEmpty) {
-      CustomSnackbar.show(
-        context,
-        'Please enter your email',
-        isError: true,
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Please enter your email'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
       return;
     }
 
@@ -296,8 +299,14 @@ class ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         ),
       );
     } catch (e) {
-      CustomSnackbar.show(context, 'Failed to send email: ${e.toString()}',
-          isError: true);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to send email: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
       debugPrint('Error: ${e.toString()}');
     } finally {
       if (mounted) setState(() => _isLoading = false);
