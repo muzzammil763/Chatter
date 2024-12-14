@@ -22,6 +22,10 @@ class SignUpScreenState extends State<SignUpScreen>
   late Animation<double> _fadeAnimation;
   late Animation<double> _nameFieldAnimation;
   bool _isPasswordVisible = false;
+  final _scrollController = ScrollController();
+  final _nameFocusNode = FocusNode();
+  final _emailFocusNode = FocusNode();
+  final _passwordFocusNode = FocusNode();
 
   @override
   void initState() {
@@ -40,6 +44,35 @@ class SignUpScreenState extends State<SignUpScreen>
       ),
     );
     _animationController.forward();
+    _nameFocusNode.addListener(() {
+      if (_nameFocusNode.hasFocus) {
+        _scrollToFocusedField(_nameFocusNode);
+      }
+    });
+
+    _emailFocusNode.addListener(() {
+      if (_emailFocusNode.hasFocus) {
+        _scrollToFocusedField(_emailFocusNode);
+      }
+    });
+
+    _passwordFocusNode.addListener(() {
+      if (_passwordFocusNode.hasFocus) {
+        _scrollToFocusedField(_passwordFocusNode);
+      }
+    });
+  }
+
+  void _scrollToFocusedField(FocusNode focusNode) {
+    if (focusNode.hasFocus) {
+      Future.delayed(Duration(milliseconds: 100), () {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
+      });
+    }
   }
 
   @override
@@ -48,6 +81,10 @@ class SignUpScreenState extends State<SignUpScreen>
     _emailController.dispose();
     _passwordController.dispose();
     _nameController.dispose();
+    _nameFocusNode.dispose();
+    _emailFocusNode.dispose();
+    _passwordFocusNode.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -59,6 +96,7 @@ class SignUpScreenState extends State<SignUpScreen>
         child: FadeTransition(
           opacity: _fadeAnimation,
           child: SingleChildScrollView(
+            controller: _scrollController,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24.0),
               child: Column(
@@ -107,6 +145,9 @@ class SignUpScreenState extends State<SignUpScreen>
                         controller: _nameController,
                         icon: Icons.person_outline,
                         label: 'Full Name',
+                        focusNode: _nameFocusNode,
+                        textInputAction: TextInputAction.next,
+                        onEditingComplete: () => _emailFocusNode.requestFocus(),
                       ),
                     ),
                   ),
@@ -116,6 +157,9 @@ class SignUpScreenState extends State<SignUpScreen>
                     icon: Icons.email_outlined,
                     label: 'Email address',
                     keyboardType: TextInputType.emailAddress,
+                    focusNode: _emailFocusNode,
+                    textInputAction: TextInputAction.next,
+                    onEditingComplete: () => _passwordFocusNode.requestFocus(),
                   ),
                   const SizedBox(height: 16),
                   _buildTextField(
@@ -123,6 +167,9 @@ class SignUpScreenState extends State<SignUpScreen>
                     icon: Icons.lock_outline,
                     label: 'Password',
                     isPassword: true,
+                    focusNode: _passwordFocusNode,
+                    textInputAction: TextInputAction.done,
+                    onEditingComplete: _handleSignUp,
                   ),
                   const SizedBox(height: 24),
                   _buildSignUpButton(),
@@ -187,6 +234,9 @@ class SignUpScreenState extends State<SignUpScreen>
     required String label,
     bool isPassword = false,
     TextInputType? keyboardType,
+    FocusNode? focusNode,
+    TextInputAction? textInputAction,
+    void Function()? onEditingComplete,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -198,6 +248,9 @@ class SignUpScreenState extends State<SignUpScreen>
         cursorHeight: 24,
         controller: controller,
         obscureText: isPassword ? !_isPasswordVisible : false,
+        focusNode: focusNode,
+        textInputAction: textInputAction,
+        onEditingComplete: onEditingComplete,
         keyboardType: keyboardType,
         style: const TextStyle(
           fontSize: 16,
