@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:web_chatter_mobile/Core/Utils/UI/custom_snackbar.dart';
 
@@ -10,6 +11,7 @@ class ForgotPasswordScreen extends StatefulWidget {
 
 class ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _emailController = TextEditingController();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
   bool _isLoading = false;
 
   @override
@@ -157,12 +159,70 @@ class ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     setState(() => _isLoading = true);
 
     try {
-      if (!mounted) return;
+      await _auth.sendPasswordResetEmail(
+        email: _emailController.text,
+      );
 
-      CustomSnackbar.show(context, 'Password reset email sent!');
+      // Show a custom snackbar or bottom sheet
+      await showModalBottomSheet(
+        context: context,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        backgroundColor: const Color(0xFF2A2A2A),
+        builder: (BuildContext context) {
+          return Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                const Text(
+                  'Email Sent',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  'A password reset email has been sent to your email address.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.white70,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context); // Close bottom sheet dialog
+                    Navigator.pushReplacementNamed(
+                        context, '/login'); // Navigate to login screen
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  child: const Text(
+                    'O K A Y',
+                    style: TextStyle(
+                      fontFamily: 'Consola',
+                      fontSize: 16,
+                      color: Color(0xFF121212),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
     } catch (e) {
-      if (!mounted) return;
-      CustomSnackbar.show(context, e.toString(), isError: true);
+      CustomSnackbar.show(context, 'Failed to send email: ${e.toString()}',
+          isError: true);
       debugPrint('Error: ${e.toString()}');
     } finally {
       if (mounted) setState(() => _isLoading = false);
