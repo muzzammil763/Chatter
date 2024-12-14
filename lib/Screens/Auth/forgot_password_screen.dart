@@ -78,7 +78,7 @@ class ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Enter your email to reset your password',
+                'Enter Your Email To Reset Your Password As We Will Send You A Password Reset Email',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontFamily: "Consola",
@@ -142,33 +142,35 @@ class ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       width: double.infinity,
       height: 56,
       child: ElevatedButton(
-        onPressed: _isLoading ? null : _handlePasswordReset,
+        onPressed: _isLoading ? () {} : _handlePasswordReset,
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.white,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
-            side: const BorderSide(color: Colors.white),
           ),
           elevation: 0,
         ),
-        child: _isLoading
-            ? const SizedBox(
-                height: 24,
-                width: 24,
-                child: CircularProgressIndicator(
-                  color: Color(0xFF121212),
-                  strokeWidth: 2.5,
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 200),
+          child: _isLoading
+              ? const SizedBox(
+                  height: 24,
+                  width: 24,
+                  child: CircularProgressIndicator(
+                    color: Color(0xFF121212),
+                    strokeWidth: 2.5,
+                  ),
+                )
+              : const Text(
+                  'R E S E T',
+                  style: TextStyle(
+                    fontFamily: 'Consola',
+                    fontSize: 17,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF121212),
+                  ),
                 ),
-              )
-            : const Text(
-                'R E S E T  P A S S W O R D',
-                style: TextStyle(
-                  fontFamily: 'Consola',
-                  fontSize: 17,
-                  fontWeight: FontWeight.w900,
-                  color: Color(0xFF121212),
-                ),
-              ),
+        ),
       ),
     );
   }

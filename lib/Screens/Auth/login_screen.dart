@@ -36,7 +36,6 @@ class LoginScreenState extends State<LoginScreen>
     );
     _animationController.forward();
 
-    // Add listeners to focus changes
     _emailFocusNode.addListener(() {
       if (_emailFocusNode.hasFocus) {
         _scrollToFocusedField(_emailFocusNode);
@@ -47,6 +46,10 @@ class LoginScreenState extends State<LoginScreen>
       if (_passwordFocusNode.hasFocus) {
         _scrollToFocusedField(_passwordFocusNode);
       }
+    });
+
+    _emailController.addListener(() {
+      // No need for this here
     });
   }
 
@@ -73,6 +76,11 @@ class LoginScreenState extends State<LoginScreen>
     super.dispose();
   }
 
+  void _resetTextFields() {
+    _emailController.clear();
+    _passwordController.clear();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -81,7 +89,7 @@ class LoginScreenState extends State<LoginScreen>
         child: FadeTransition(
           opacity: _fadeAnimation,
           child: SingleChildScrollView(
-            controller: _scrollController, // Set the scroll controller here
+            controller: _scrollController,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24.0),
               child: Column(
@@ -141,7 +149,9 @@ class LoginScreenState extends State<LoginScreen>
                   const SizedBox(height: 16),
                   TextButton(
                     onPressed: () {
-                      Navigator.of(context).push(
+                      FocusScope.of(context).unfocus(); // Dismiss keyboard
+                      Navigator.of(context)
+                          .push(
                         PageRouteBuilder(
                           pageBuilder:
                               (context, animation, secondaryAnimation) =>
@@ -161,7 +171,10 @@ class LoginScreenState extends State<LoginScreen>
                           },
                           transitionDuration: const Duration(milliseconds: 400),
                         ),
-                      );
+                      )
+                          .then((_) {
+                        _resetTextFields();
+                      });
                     },
                     child: RichText(
                       text: const TextSpan(
