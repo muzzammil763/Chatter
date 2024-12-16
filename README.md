@@ -1,7 +1,7 @@
 **# Chatter Mobile
 
 <p align="center">
-  <img src="assets/logo.png" width="100" alt="Web Chatter Logo"/>
+  <img src="assets/app_icon.png" width="1080" alt="Chatter"/>
 </p>
 
 A modern real-time chat application built with Flutter and Firebase, featuring a sleek dark theme
@@ -106,10 +106,10 @@ interface and comprehensive social features.
 
 ```bash
 git clone https://github.com/muzzammil763/Chatter.git
-**# Web Chatter Mobile
+**# Chatter
 
 <p align="center">
-  <img src="assets/app_icon.png" width="100" alt="Web Chatter Logo"/>
+  <img src="assets/app_icon.png" width="100" alt="Chatter"/>
 </p>
 
 A modern real-time chat application built with Flutter and Firebase, featuring a sleek dark theme interface and comprehensive social features.
@@ -201,7 +201,7 @@ A modern real-time chat application built with Flutter and Firebase, featuring a
 
 1. Clone the repository
 ```bash
-git clone https://github.com/yourusername/web_chatter_mobile.git
+git clone https://github.com/muzzammil763/chatter.git
 ```
 
 2. Install dependencies
