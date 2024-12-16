@@ -20,7 +20,8 @@ class LoginScreenState extends State<LoginScreen>
   final _emailFocusNode = FocusNode();
   final _passwordFocusNode = FocusNode();
   final _scrollController = ScrollController();
-  bool _isLoading = false;
+  bool _isEmailLoading = false;
+  bool _isGoogleLoading = false;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
 
@@ -48,9 +49,7 @@ class LoginScreenState extends State<LoginScreen>
       }
     });
 
-    _emailController.addListener(() {
-      // No need for this here
-    });
+    _emailController.addListener(() {});
   }
 
   void _scrollToFocusedField(FocusNode focusNode) {
@@ -337,7 +336,7 @@ class LoginScreenState extends State<LoginScreen>
       width: double.infinity,
       height: 56,
       child: ElevatedButton(
-        onPressed: _isLoading ? () {} : _handleLogin,
+        onPressed: _isEmailLoading ? () {} : _handleLogin,
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.white,
           shape: RoundedRectangleBorder(
@@ -347,7 +346,7 @@ class LoginScreenState extends State<LoginScreen>
         ),
         child: AnimatedSwitcher(
           duration: const Duration(milliseconds: 200),
-          child: _isLoading
+          child: _isEmailLoading
               ? const SizedBox(
                   height: 24,
                   width: 24,
@@ -375,7 +374,7 @@ class LoginScreenState extends State<LoginScreen>
       width: double.infinity,
       height: 56,
       child: ElevatedButton(
-        onPressed: _isLoading ? null : _handleGoogleSignIn,
+        onPressed: _isGoogleLoading ? () {} : _handleGoogleSignIn,
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.white,
           shape: RoundedRectangleBorder(
@@ -383,32 +382,44 @@ class LoginScreenState extends State<LoginScreen>
           ),
           elevation: 0,
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Image.asset(
-              'assets/google_logo.png',
-              height: 24,
-              width: 24,
-            ),
-            const SizedBox(width: 12),
-            const Text(
-              'Continue with Google',
-              style: TextStyle(
-                fontFamily: 'Consola',
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Colors.black87,
-              ),
-            ),
-          ],
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 200),
+          child: _isGoogleLoading
+              ? const SizedBox(
+                  height: 24,
+                  width: 24,
+                  child: CircularProgressIndicator(
+                    color: Color(0xFF121212),
+                    strokeWidth: 2.5,
+                  ),
+                )
+              : Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Image.asset(
+                      'assets/google_logo.png',
+                      height: 24,
+                      width: 24,
+                    ),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'Continue with Google',
+                      style: TextStyle(
+                        fontFamily: 'Consola',
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ],
+                ),
         ),
       ),
     );
   }
 
   Future<void> _handleGoogleSignIn() async {
-    setState(() => _isLoading = true);
+    setState(() => _isGoogleLoading = true);
 
     try {
       final authService = context.read<AuthService>();
@@ -424,7 +435,7 @@ class LoginScreenState extends State<LoginScreen>
       if (!mounted) return;
       CustomSnackbar.show(context, e.toString(), isError: true);
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) setState(() => _isGoogleLoading = false);
     }
   }
 
@@ -438,7 +449,7 @@ class LoginScreenState extends State<LoginScreen>
       return;
     }
 
-    setState(() => _isLoading = true);
+    setState(() => _isEmailLoading = true);
 
     try {
       final authService = context.read<AuthService>();
@@ -458,7 +469,7 @@ class LoginScreenState extends State<LoginScreen>
       CustomSnackbar.show(context, e.toString(), isError: true);
       debugPrint('Error: ${e.toString()}');
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) setState(() => _isEmailLoading = false);
     }
   }
 }
