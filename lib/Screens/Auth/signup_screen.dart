@@ -103,7 +103,7 @@ class SignUpScreenState extends State<SignUpScreen>
                 crossAxisAlignment: CrossAxisAlignment.center,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const SizedBox(height: 96),
+                  const SizedBox(height: 32),
                   Container(
                     width: 100,
                     height: 100,
@@ -172,9 +172,9 @@ class SignUpScreenState extends State<SignUpScreen>
                     textInputAction: TextInputAction.done,
                     onEditingComplete: _handleSignUp,
                   ),
-                  const SizedBox(height: 24),
-                  _buildSignUpButton(),
                   const SizedBox(height: 16),
+                  _buildSignUpButton(),
+                  const SizedBox(height: 8),
                   TextButton(
                     onPressed: () {
                       FocusScope.of(context).unfocus();
@@ -224,11 +224,86 @@ class SignUpScreenState extends State<SignUpScreen>
                       ),
                     ),
                   ),
+                  const Row(
+                    children: [
+                      Expanded(
+                        child: Divider(
+                          color: Colors.white24,
+                          thickness: 1,
+                        ),
+                      ),
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16),
+                        child: Text(
+                          'OR',
+                          style: TextStyle(
+                            color: Colors.white54,
+                            fontFamily: 'Consola',
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: Divider(
+                          color: Colors.white24,
+                          thickness: 1,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  _buildGoogleSignUpButton(),
                 ],
               ),
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildGoogleSignUpButton() {
+    return SizedBox(
+      width: double.infinity,
+      height: 56,
+      child: ElevatedButton(
+        onPressed: _isLoading ? null : _handleGoogleSignUp,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+          elevation: 0,
+        ),
+        child: _isLoading
+            ? const SizedBox(
+                height: 24,
+                width: 24,
+                child: CircularProgressIndicator(
+                  color: Color(0xFF121212),
+                  strokeWidth: 2.5,
+                ),
+              )
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Image.asset(
+                    'assets/google_logo.png',
+                    height: 24,
+                    width: 24,
+                  ),
+                  const SizedBox(width: 12),
+                  const Text(
+                    'Sign Up with Google',
+                    style: TextStyle(
+                      fontFamily: 'Consola',
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ],
+              ),
       ),
     );
   }
@@ -333,6 +408,49 @@ class SignUpScreenState extends State<SignUpScreen>
         ),
       ),
     );
+  }
+
+  Future<void> _handleGoogleSignUp() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final authService = context.read<AuthService>();
+
+      // If email and name fields are filled, we'll use them to supplement Google Sign-Up
+      String? supplementalName;
+      String? supplementalEmail;
+
+      if (_nameController.text.isNotEmpty) {
+        supplementalName = _nameController.text;
+      }
+
+      if (_emailController.text.isNotEmpty) {
+        supplementalEmail = _emailController.text;
+      }
+
+      final userCredential = await authService.signUpWithGoogle(
+        supplementalName: supplementalName,
+        supplementalEmail: supplementalEmail,
+      );
+
+      if (!mounted) return;
+
+      CustomSnackbar.show(context, 'Account created successfully!');
+
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => AvatarSelectionScreen(
+            userEmail: userCredential.user?.email ?? '',
+            onAvatarSelected: (seed) {},
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      CustomSnackbar.show(context, e.toString(), isError: true);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   Future<void> _handleSignUp() async {
