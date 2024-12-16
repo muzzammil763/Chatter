@@ -124,7 +124,7 @@ class _DevModeScreenState extends State<DevModeScreen>
           ),
           onPressed: () => Navigator.pop(context),
         ),
-        backgroundColor: const Color(0xFF1F1F1F),
+        backgroundColor: const Color(0xFF121212),
         elevation: 0,
         title: const Text(
           'Dev Mode',

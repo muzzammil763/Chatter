@@ -92,7 +92,7 @@ class _AdminGroupCreationScreenState extends State<AdminGroupCreationScreen> {
       backgroundColor: const Color(0xFF121212),
       appBar: AppBar(
         scrolledUnderElevation: 0,
-        backgroundColor: const Color(0xFF1F1F1F),
+        backgroundColor: const Color(0xFF121212),
         title: const Text(
           'Create Group',
           style: TextStyle(
@@ -235,7 +235,7 @@ class _AdminGroupCreationScreenState extends State<AdminGroupCreationScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1F1F1F),
+        backgroundColor: const Color(0xFF121212),
         title: const Text(
           'Choose Group Avatar',
           style: TextStyle(color: Colors.white),

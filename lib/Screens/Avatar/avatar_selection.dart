@@ -117,7 +117,7 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen>
       backgroundColor: const Color(0xFF121212),
       appBar: AppBar(
         scrolledUnderElevation: 0,
-        backgroundColor: const Color(0xFF1F1F1F),
+        backgroundColor: const Color(0xFF121212),
         title: const Text(
           'Choose Avatar',
           style: TextStyle(

@@ -36,7 +36,7 @@ class ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               _emailController.clear();
               Navigator.pop(context);
             },
-            backgroundColor: const Color(0xFF1F1F1F),
+            backgroundColor: const Color(0xFF121212),
             shape: const CircleBorder(
               side: BorderSide(
                 color: Color(0xFF2A2A2A),

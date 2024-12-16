@@ -173,7 +173,7 @@ class _UsersScreenState extends State<UsersScreen>
                   ),
                 ),
                 elevation: 12,
-                backgroundColor: const Color(0xFF1F1F1F),
+                backgroundColor: const Color(0xFF121212),
                 onPressed: () {
                   Navigator.push(
                     context,
@@ -253,7 +253,7 @@ class _UsersScreenState extends State<UsersScreen>
             return const SizedBox.shrink();
           },
         ),
-        backgroundColor: const Color(0xFF1F1F1F),
+        backgroundColor: const Color(0xFF121212),
         elevation: 0,
         title: StreamBuilder(
           stream: FirebaseDatabase.instance
@@ -999,7 +999,7 @@ class _OnlineStatusIndicatorState extends State<_OnlineStatusIndicator> {
 //     return Scaffold(
 //       backgroundColor: const Color(0xFF121212),
 //       appBar: AppBar(
-//         backgroundColor: const Color(0xFF1F1F1F),
+//         backgroundColor: const Color(0xFF121212),
 //         title: Column(
 //           crossAxisAlignment: CrossAxisAlignment.start,
 //           children: [

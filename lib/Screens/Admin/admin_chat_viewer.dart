@@ -68,7 +68,7 @@ class _AdminChatViewerState extends State<AdminChatViewer> {
       backgroundColor: const Color(0xFF121212),
       appBar: AppBar(
         scrolledUnderElevation: 0,
-        backgroundColor: const Color(0xFF1F1F1F),
+        backgroundColor: const Color(0xFF121212),
         elevation: 0,
         title: Row(
           children: [

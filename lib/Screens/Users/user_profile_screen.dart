@@ -146,7 +146,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       backgroundColor: const Color(0xFF121212),
       appBar: AppBar(
         scrolledUnderElevation: 0,
-        backgroundColor: const Color(0xFF1F1F1F),
+        backgroundColor: const Color(0xFF121212),
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),

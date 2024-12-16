@@ -89,7 +89,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
           onPressed: Navigator.of(context).pop,
           icon: const Icon(Icons.arrow_back, color: Colors.white),
         ),
-        backgroundColor: const Color(0xFF1F1F1F),
+        backgroundColor: const Color(0xFF121212),
         elevation: 0,
         title: const Text(
           'Admin Dashboard',
