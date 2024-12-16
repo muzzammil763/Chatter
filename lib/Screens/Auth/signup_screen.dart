@@ -142,6 +142,7 @@ class SignUpScreenState extends State<SignUpScreen>
                         end: Offset.zero,
                       ).animate(_nameFieldAnimation),
                       child: _buildTextField(
+                        isName: true,
                         controller: _nameController,
                         icon: Icons.person_outline,
                         label: 'Full Name',
@@ -237,6 +238,7 @@ class SignUpScreenState extends State<SignUpScreen>
     required IconData icon,
     required String label,
     bool isPassword = false,
+    bool isName = false,
     TextInputType? keyboardType,
     FocusNode? focusNode,
     TextInputAction? textInputAction,
@@ -248,6 +250,8 @@ class SignUpScreenState extends State<SignUpScreen>
         borderRadius: BorderRadius.circular(14),
       ),
       child: TextField(
+        textCapitalization:
+            isName ? TextCapitalization.words : TextCapitalization.none,
         cursorColor: Colors.white,
         cursorHeight: 24,
         controller: controller,
