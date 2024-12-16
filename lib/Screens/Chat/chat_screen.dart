@@ -215,6 +215,7 @@ class ChatScreenState extends State<ChatScreen>
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
       appBar: AppBar(
+        scrolledUnderElevation: 0,
         leading: GestureDetector(
           onTap: () => Navigator.pop(context),
           child: Container(

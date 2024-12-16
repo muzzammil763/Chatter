@@ -106,6 +106,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
       appBar: AppBar(
+        scrolledUnderElevation: 0,
         title: GestureDetector(
           onTap: () => _showGroupMembersDialog(),
           child: Row(

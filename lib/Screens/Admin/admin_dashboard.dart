@@ -84,6 +84,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
       appBar: AppBar(
+        scrolledUnderElevation: 0,
         leading: IconButton(
           onPressed: Navigator.of(context).pop,
           icon: const Icon(Icons.arrow_back, color: Colors.white),

@@ -280,6 +280,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
       appBar: AppBar(
+        scrolledUnderElevation: 0,
         backgroundColor: const Color(0xFF1F1F1F),
         elevation: 0,
         leading: IconButton(

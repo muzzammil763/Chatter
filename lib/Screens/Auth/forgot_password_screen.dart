@@ -181,8 +181,8 @@ class ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     if (_emailController.text.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Please enter your email'),
+          const SnackBar(
+            content: Text('Please enter your email'),
             backgroundColor: Colors.red,
           ),
         );

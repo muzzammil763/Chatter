@@ -194,6 +194,7 @@ class _UsersScreenState extends State<UsersScreen>
       ),
       backgroundColor: const Color(0xFF121212),
       appBar: AppBar(
+        scrolledUnderElevation: 0,
         leading: StreamBuilder(
           stream: FirebaseDatabase.instance
               .ref('users/${currentUser?.uid}')
