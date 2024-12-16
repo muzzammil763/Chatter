@@ -494,43 +494,11 @@ class _UsersScreenState extends State<UsersScreen>
                     ),
             ),
           ),
-          StreamBuilder(
-            stream: FirebaseDatabase.instance.ref('status/${user.key}').onValue,
-            builder: (context, statusSnapshot) {
-              if (statusSnapshot.hasData) {
-                final status = (statusSnapshot.data as DatabaseEvent)
-                    .snapshot
-                    .value as Map?;
-                final isOnline = status?['state'] == 'online';
-                return Positioned(
-                  right: -2,
-                  bottom: -2,
-                  child: Container(
-                    width: 14,
-                    height: 14,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF121212),
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: const Color(0xFF121212),
-                        width: 2,
-                      ),
-                    ),
-                    child: Center(
-                      child: Container(
-                        width: 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: isOnline ? Colors.green : Colors.grey,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              }
-              return const SizedBox.shrink();
-            },
+          // Use a separate StatefulBuilder to optimize rebuilds
+          Positioned(
+            right: -2,
+            bottom: -2,
+            child: _OnlineStatusIndicator(userId: user.key),
           ),
         ],
       );
@@ -694,5 +662,64 @@ class _UsersScreenState extends State<UsersScreen>
     _animationController.dispose();
     _userSubscription.cancel();
     super.dispose();
+  }
+}
+
+class _OnlineStatusIndicator extends StatefulWidget {
+  final dynamic userId;
+
+  const _OnlineStatusIndicator({required this.userId});
+
+  @override
+  _OnlineStatusIndicatorState createState() => _OnlineStatusIndicatorState();
+}
+
+class _OnlineStatusIndicatorState extends State<_OnlineStatusIndicator> {
+  bool _isOnline = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _listenToUserStatus();
+  }
+
+  void _listenToUserStatus() {
+    FirebaseDatabase.instance
+        .ref('status/${widget.userId}')
+        .onValue
+        .listen((event) {
+      final status = (event.snapshot.value as Map?);
+      if (mounted) {
+        setState(() {
+          _isOnline = status?['state'] == 'online';
+        });
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 14,
+      height: 14,
+      decoration: BoxDecoration(
+        color: const Color(0xFF121212),
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: const Color(0xFF121212),
+          width: 2,
+        ),
+      ),
+      child: Center(
+        child: Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(
+            color: _isOnline ? Colors.green : Colors.grey,
+            shape: BoxShape.circle,
+          ),
+        ),
+      ),
+    );
   }
 }
