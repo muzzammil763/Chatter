@@ -397,6 +397,9 @@ class _UsersScreenState extends State<UsersScreen>
           itemCount: groups.length,
           itemBuilder: (context, index) {
             final group = groups[index];
+            final lastMessage = _cachedLastMessages[
+                group.key]; // Get last message for this group
+
             return Container(
               margin: const EdgeInsets.only(bottom: 8),
               decoration: BoxDecoration(
@@ -418,7 +421,6 @@ class _UsersScreenState extends State<UsersScreen>
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
-                contentPadding: const EdgeInsets.all(12),
                 leading: _buildGroupAvatar(group.value),
                 title: Text(
                   group.value['name'],
@@ -429,12 +431,31 @@ class _UsersScreenState extends State<UsersScreen>
                     color: Colors.white,
                   ),
                 ),
-                subtitle: Text(
-                  '${group.value['members']?.length ?? 0} members',
-                  style: TextStyle(
+                subtitle: lastMessage != null && lastMessage.isNotEmpty
+                    ? Text(
+                        lastMessage['text'], // Show the last message text
+                        style: const TextStyle(
+                          fontFamily: 'Consola',
+                          color: Colors.grey,
+                          fontSize: 12,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      )
+                    : const Text(
+                        'No messages yet', // Fallback if no last message
+                        style: TextStyle(
+                          fontFamily: 'Consola',
+                          color: Colors.grey,
+                          fontSize: 12,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                trailing: Text(
+                  '${group.value['members']?.length ?? 0} members', // Show the number of members
+                  style: const TextStyle(
+                    color: Colors.grey,
+                    fontSize: 12,
                     fontFamily: 'Consola',
-                    color: Colors.grey[400],
-                    fontSize: 14,
                   ),
                 ),
               ),
@@ -910,12 +931,21 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         .limitToLast(1)
         .onValue
         .listen((event) {
-      final messagesMap = event.snapshot.value as Map?;
-      if (messagesMap != null && messagesMap.isNotEmpty) {
-        setState(() {
-          _lastMessage =
-              Map<String, dynamic>.from(messagesMap.values.first as Map);
-        });
+      final messagesMap =
+          event.snapshot.value as Map? ?? {}; // Define messagesMap here
+
+      if (messagesMap.isNotEmpty) {
+        final lastMessage = messagesMap.entries
+            .map((e) => Map<String, dynamic>.from(e.value as Map))
+            .toList()
+          ..sort((a, b) =>
+              (a['timestamp'] as int).compareTo(b['timestamp'] as int));
+
+        if (lastMessage.isNotEmpty) {
+          setState(() {
+            _lastMessage = lastMessage.last; // Use _lastMessage appropriately
+          });
+        }
       }
     });
   }
@@ -985,15 +1015,35 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                   .limitToLast(50)
                   .onValue,
               builder: (context, snapshot) {
-                if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator());
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Text(
+                      'Error: ${snapshot.error}',
+                      style: const TextStyle(
+                        color: Colors.red,
+                        fontSize: 16,
+                      ),
+                    ),
+                  );
                 }
 
-                final messages =
-                    (snapshot.data?.snapshot.value as Map?)?.values.toList() ??
-                        [];
+                if (!snapshot.hasData) {
+                  return const Center(
+                      child: CircularProgressIndicator(color: Colors.white));
+                }
+
+                final messagesMap = snapshot.data?.snapshot.value;
+                List<dynamic> messages = [];
+                if (messagesMap is Map) {
+                  messages = messagesMap.entries
+                      .map((e) => Map<String, dynamic>.from(e.value as Map))
+                      .toList()
+                    ..sort((a, b) => (a['timestamp'] as int)
+                        .compareTo(b['timestamp'] as int));
+                }
 
                 return ListView.builder(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
                   itemCount: messages.length,
                   itemBuilder: (context, index) {
                     final message = messages[index];
@@ -1037,7 +1087,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
               },
             ),
           ),
-          _buildMessageInput(),
+          _buildMessageInput(), // Include your input field here
         ],
       ),
     );
