@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
@@ -14,6 +13,7 @@ import 'package:web_chatter_mobile/Core/Services/Storage/shared_prefs_service.da
 import 'package:web_chatter_mobile/Screens/Admin/admin_dashboard.dart';
 import 'package:web_chatter_mobile/Screens/Chat/chat_screen.dart';
 import 'package:web_chatter_mobile/Screens/Settings/settings_screen.dart';
+import 'package:web_chatter_mobile/Screens/Users/group_chat_screen.dart';
 import 'package:web_chatter_mobile/Screens/Users/user_profile_screen.dart';
 
 import '../../main.dart';
@@ -412,8 +412,8 @@ class _UsersScreenState extends State<UsersScreen>
                     context,
                     MaterialPageRoute(
                       builder: (_) => GroupChatScreen(
-                        group: Map<String, dynamic>.from(group.value),
                         groupId: group.key,
+                        groupDetails: Map<String, dynamic>.from(group.value),
                       ),
                     ),
                   );
@@ -902,278 +902,282 @@ class _OnlineStatusIndicatorState extends State<_OnlineStatusIndicator> {
   }
 }
 
-class GroupChatScreen extends StatefulWidget {
-  final Map<String, dynamic> group;
-  final String groupId;
-
-  const GroupChatScreen(
-      {super.key, required this.group, required this.groupId});
-
-  @override
-  State<GroupChatScreen> createState() => _GroupChatScreenState();
-}
-
-class _GroupChatScreenState extends State<GroupChatScreen> {
-  final TextEditingController _messageController = TextEditingController();
-  Map<String, dynamic> _groupMembers = {};
-  Map<String, dynamic> _lastMessage = {};
-
-  @override
-  void initState() {
-    super.initState();
-    _loadGroupMembers();
-    _subscribeToLastMessage();
-  }
-
-  void _subscribeToLastMessage() {
-    FirebaseDatabase.instance
-        .ref('group_chats/${widget.groupId}')
-        .limitToLast(1)
-        .onValue
-        .listen((event) {
-      final messagesMap =
-          event.snapshot.value as Map? ?? {}; // Define messagesMap here
-
-      if (messagesMap.isNotEmpty) {
-        final lastMessage = messagesMap.entries
-            .map((e) => Map<String, dynamic>.from(e.value as Map))
-            .toList()
-          ..sort((a, b) =>
-              (a['timestamp'] as int).compareTo(b['timestamp'] as int));
-
-        if (lastMessage.isNotEmpty) {
-          setState(() {
-            _lastMessage = lastMessage.last; // Use _lastMessage appropriately
-          });
-        }
-      }
-    });
-  }
-
-  Future<void> _loadGroupMembers() async {
-    final membersSnapshot =
-        await FirebaseDatabase.instance.ref('users').orderByKey().get();
-
-    if (membersSnapshot.exists) {
-      setState(() {
-        _groupMembers = Map<String, dynamic>.from(membersSnapshot.value as Map)
-          ..removeWhere((key, value) =>
-              !(widget.group['members'] as Map).containsKey(key));
-      });
-    }
-  }
-
-  String _formatTimestamp(int? timestamp) {
-    if (timestamp == null) return '';
-    final dateTime = DateTime.fromMillisecondsSinceEpoch(timestamp);
-    final hour = dateTime.hour;
-    final minute = dateTime.minute;
-    final period = hour >= 12 ? 'PM' : 'AM';
-    final formattedHour = hour > 12 ? hour - 12 : hour;
-    return '${formattedHour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')} $period';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF121212),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF1F1F1F),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              widget.group['name'],
-              style: const TextStyle(
-                color: Colors.white,
-                fontFamily: 'Consola',
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            Text(
-              '${_groupMembers.length} members',
-              style: const TextStyle(
-                color: Colors.grey,
-                fontFamily: 'Consola',
-                fontSize: 12,
-              ),
-            ),
-          ],
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: StreamBuilder(
-              stream: FirebaseDatabase.instance
-                  .ref('group_chats/${widget.groupId}')
-                  .orderByChild('timestamp')
-                  .limitToLast(50)
-                  .onValue,
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return Center(
-                    child: Text(
-                      'Error: ${snapshot.error}',
-                      style: const TextStyle(
-                        color: Colors.red,
-                        fontSize: 16,
-                      ),
-                    ),
-                  );
-                }
-
-                if (!snapshot.hasData) {
-                  return const Center(
-                      child: CircularProgressIndicator(color: Colors.white));
-                }
-
-                final messagesMap = snapshot.data?.snapshot.value;
-                List<dynamic> messages = [];
-                if (messagesMap is Map) {
-                  messages = messagesMap.entries
-                      .map((e) => Map<String, dynamic>.from(e.value as Map))
-                      .toList()
-                    ..sort((a, b) => (a['timestamp'] as int)
-                        .compareTo(b['timestamp'] as int));
-                }
-
-                return ListView.builder(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  itemCount: messages.length,
-                  itemBuilder: (context, index) {
-                    final message = messages[index];
-                    final sender = _groupMembers[message['senderId']] ?? {};
-
-                    return Container(
-                      margin: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1A1A1A),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: ListTile(
-                        leading: _buildUserAvatar(sender),
-                        title: Text(
-                          message['senderName'] ?? 'Unknown',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontFamily: 'Consola',
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        subtitle: Text(
-                          message['text'],
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontFamily: 'Consola',
-                          ),
-                        ),
-                        trailing: Text(
-                          _formatTimestamp(message['timestamp']),
-                          style: const TextStyle(
-                            color: Colors.grey,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
-          ),
-          _buildMessageInput(), // Include your input field here
-        ],
-      ),
-    );
-  }
-
-  Widget _buildUserAvatar(Map<String, dynamic> userData) {
-    final useSimpleAvatar = userData['useSimpleAvatar'] ?? false;
-    final avatarSeed = userData['avatarSeed'] as String?;
-    final email = userData['email'] as String;
-
-    return Container(
-      width: 48,
-      height: 48,
-      decoration: BoxDecoration(
-        color: const Color(0xFF2A2A2A),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Center(
-        child: useSimpleAvatar || avatarSeed == null || avatarSeed.isEmpty
-            ? Text(
-                email[0].toUpperCase(),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontFamily: 'Consola',
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              )
-            : RandomAvatar(
-                avatarSeed,
-                height: 48,
-                width: 48,
-              ),
-      ),
-    );
-  }
-
-  Widget _buildMessageInput() {
-    return Container(
-      padding: const EdgeInsets.all(8),
-      color: const Color(0xFF1F1F1F),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: _messageController,
-              decoration: InputDecoration(
-                hintText: 'Type a message...',
-                filled: true,
-                fillColor: const Color(0xFF2A2A2A),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(20),
-                  borderSide: BorderSide.none,
-                ),
-              ),
-              style: const TextStyle(color: Colors.white),
-            ),
-          ),
-          const SizedBox(width: 8),
-          CircleAvatar(
-            backgroundColor: Colors.white,
-            child: IconButton(
-              icon: const Icon(Icons.send, color: Color(0xFF121212)),
-              onPressed: _sendMessage,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _sendMessage() {
-    final message = _messageController.text.trim();
-    if (message.isEmpty) return;
-
-    final currentUser = FirebaseAuth.instance.currentUser;
-    final messageRef =
-        FirebaseDatabase.instance.ref('group_chats/${widget.groupId}').push();
-
-    messageRef.set({
-      'text': message,
-      'senderId': currentUser?.uid,
-      'senderName': currentUser?.displayName ?? 'Anonymous',
-      'timestamp': ServerValue.timestamp,
-    });
-
-    _messageController.clear();
-  }
-}
+// class GroupChatScreen extends StatefulWidget {
+//   final Map<String, dynamic> group;
+//   final String groupId;
+//
+//   const GroupChatScreen(
+//       {super.key, required this.group, required this.groupId});
+//
+//   @override
+//   State<GroupChatScreen> createState() => _GroupChatScreenState();
+// }
+//
+// class _GroupChatScreenState extends State<GroupChatScreen> {
+//   final TextEditingController _messageController = TextEditingController();
+//   Map<String, dynamic> _groupMembers = {};
+//   Map<String, dynamic> _lastMessage = {};
+//
+//   @override
+//   void initState() {
+//     super.initState();
+//     _loadGroupMembers();
+//     _subscribeToLastMessage();
+//   }
+//
+//   void _subscribeToLastMessage() {
+//     FirebaseDatabase.instance
+//         .ref('group_chats/${widget.groupId}')
+//         .limitToLast(1)
+//         .onValue
+//         .listen((event) {
+//       final messagesMap =
+//           event.snapshot.value as Map? ?? {}; // Define messagesMap here
+//
+//       if (messagesMap.isNotEmpty) {
+//         final lastMessage = messagesMap.entries
+//             .map((e) => Map<String, dynamic>.from(e.value as Map))
+//             .toList()
+//           ..sort((a, b) =>
+//               (a['timestamp'] as int).compareTo(b['timestamp'] as int));
+//
+//         if (lastMessage.isNotEmpty) {
+//           setState(() {
+//             _lastMessage = lastMessage.last;
+//           });
+//         }
+//       }
+//     });
+//   }
+//
+//   Future<void> _loadGroupMembers() async {
+//     final membersSnapshot =
+//         await FirebaseDatabase.instance.ref('users').orderByKey().get();
+//
+//     if (membersSnapshot.exists) {
+//       setState(() {
+//         _groupMembers = Map<String, dynamic>.from(
+//             membersSnapshot.value as Map<dynamic, dynamic>);
+//         _groupMembers.removeWhere((key, value) =>
+//             !(widget.group['members'] as Map<dynamic, dynamic>)
+//                 .containsKey(key));
+//       });
+//     }
+//   }
+//
+//   String _formatTimestamp(int? timestamp) {
+//     if (timestamp == null) return '';
+//     final dateTime = DateTime.fromMillisecondsSinceEpoch(timestamp);
+//     final hour = dateTime.hour;
+//     final minute = dateTime.minute;
+//     final period = hour >= 12 ? 'PM' : 'AM';
+//     final formattedHour = hour > 12 ? hour - 12 : hour;
+//     return '${formattedHour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')} $period';
+//   }
+//
+//   @override
+//   Widget build(BuildContext context) {
+//     return Scaffold(
+//       backgroundColor: const Color(0xFF121212),
+//       appBar: AppBar(
+//         backgroundColor: const Color(0xFF1F1F1F),
+//         title: Column(
+//           crossAxisAlignment: CrossAxisAlignment.start,
+//           children: [
+//             Text(
+//               widget.group['name'],
+//               style: const TextStyle(
+//                 color: Colors.white,
+//                 fontFamily: 'Consola',
+//                 fontWeight: FontWeight.bold,
+//               ),
+//             ),
+//             Text(
+//               '${_groupMembers.length} members',
+//               style: const TextStyle(
+//                 color: Colors.grey,
+//                 fontFamily: 'Consola',
+//                 fontSize: 12,
+//               ),
+//             ),
+//           ],
+//         ),
+//         leading: IconButton(
+//           icon: const Icon(Icons.arrow_back, color: Colors.white),
+//           onPressed: () => Navigator.pop(context),
+//         ),
+//       ),
+//       body: Column(
+//         children: [
+//           Expanded(
+//             child: StreamBuilder(
+//               stream: FirebaseDatabase.instance
+//                   .ref('group_chats/${widget.groupId}')
+//                   .orderByChild('timestamp')
+//                   .limitToLast(50)
+//                   .onValue,
+//               builder: (context, snapshot) {
+//                 if (snapshot.hasError) {
+//                   return Center(
+//                     child: Text(
+//                       'Error: ${snapshot.error}',
+//                       style: const TextStyle(
+//                         color: Colors.red,
+//                         fontSize: 16,
+//                       ),
+//                     ),
+//                   );
+//                 }
+//
+//                 if (!snapshot.hasData) {
+//                   return const Center(
+//                       child: CircularProgressIndicator(color: Colors.white));
+//                 }
+//
+//                 final messagesMap = snapshot.data?.snapshot.value
+//                     as Map<dynamic, dynamic>?; // Safe cast
+//                 List<dynamic> messages = [];
+//                 if (messagesMap != null) {
+//                   messages = messagesMap.entries
+//                       .map((e) => Map<String, dynamic>.from(
+//                           e.value as Map<dynamic, dynamic>)) // Safely cast here
+//                       .toList()
+//                     ..sort((a, b) => (a['timestamp'] as int)
+//                         .compareTo(b['timestamp'] as int));
+//                 }
+//
+//                 return ListView.builder(
+//                   padding: const EdgeInsets.symmetric(vertical: 8),
+//                   itemCount: messages.length,
+//                   itemBuilder: (context, index) {
+//                     final message = messages[index];
+//                     final sender = _groupMembers[message['senderId']] ?? {};
+//
+//                     return Container(
+//                       margin: const EdgeInsets.symmetric(
+//                           horizontal: 16, vertical: 8),
+//                       decoration: BoxDecoration(
+//                         color: const Color(0xFF1A1A1A),
+//                         borderRadius: BorderRadius.circular(12),
+//                       ),
+//                       child: ListTile(
+//                         leading: _buildUserAvatar(sender),
+//                         title: Text(
+//                           message['senderName'] ?? 'Unknown',
+//                           style: const TextStyle(
+//                             color: Colors.white,
+//                             fontFamily: 'Consola',
+//                             fontWeight: FontWeight.bold,
+//                           ),
+//                         ),
+//                         subtitle: Text(
+//                           message['text'],
+//                           style: const TextStyle(
+//                             color: Colors.white70,
+//                             fontFamily: 'Consola',
+//                           ),
+//                         ),
+//                         trailing: Text(
+//                           _formatTimestamp(message['timestamp']),
+//                           style: const TextStyle(
+//                             color: Colors.grey,
+//                             fontSize: 12,
+//                           ),
+//                         ),
+//                       ),
+//                     );
+//                   },
+//                 );
+//               },
+//             ),
+//           ),
+//           _buildMessageInput(), // Include your input field here
+//         ],
+//       ),
+//     );
+//   }
+//
+//   Widget _buildUserAvatar(Map<String, dynamic> userData) {
+//     final useSimpleAvatar = userData['useSimpleAvatar'] ?? false;
+//     final avatarSeed = userData['avatarSeed'] as String?;
+//     final email = userData['email'] as String;
+//
+//     return Container(
+//       width: 48,
+//       height: 48,
+//       decoration: BoxDecoration(
+//         color: const Color(0xFF2A2A2A),
+//         borderRadius: BorderRadius.circular(12),
+//       ),
+//       child: Center(
+//         child: useSimpleAvatar || avatarSeed == null || avatarSeed.isEmpty
+//             ? Text(
+//                 email[0].toUpperCase(),
+//                 style: const TextStyle(
+//                   color: Colors.white,
+//                   fontFamily: 'Consola',
+//                   fontSize: 20,
+//                   fontWeight: FontWeight.bold,
+//                 ),
+//               )
+//             : RandomAvatar(
+//                 avatarSeed,
+//                 height: 48,
+//                 width: 48,
+//               ),
+//       ),
+//     );
+//   }
+//
+//   Widget _buildMessageInput() {
+//     return Container(
+//       padding: const EdgeInsets.all(8),
+//       color: const Color(0xFF1F1F1F),
+//       child: Row(
+//         children: [
+//           Expanded(
+//             child: TextField(
+//               controller: _messageController,
+//               decoration: InputDecoration(
+//                 hintText: 'Type a message...',
+//                 filled: true,
+//                 fillColor: const Color(0xFF2A2A2A),
+//                 border: OutlineInputBorder(
+//                   borderRadius: BorderRadius.circular(20),
+//                   borderSide: BorderSide.none,
+//                 ),
+//               ),
+//               style: const TextStyle(color: Colors.white),
+//             ),
+//           ),
+//           const SizedBox(width: 8),
+//           CircleAvatar(
+//             backgroundColor: Colors.white,
+//             child: IconButton(
+//               icon: const Icon(Icons.send, color: Color(0xFF121212)),
+//               onPressed: _sendMessage,
+//             ),
+//           ),
+//         ],
+//       ),
+//     );
+//   }
+//
+//   void _sendMessage() {
+//     final message = _messageController.text.trim();
+//     if (message.isEmpty) return;
+//
+//     final currentUser = FirebaseAuth.instance.currentUser;
+//     final messageRef =
+//         FirebaseDatabase.instance.ref('group_chats/${widget.groupId}').push();
+//
+//     messageRef.set({
+//       'text': message,
+//       'senderId': currentUser?.uid,
+//       'senderName': currentUser?.displayName ?? 'Anonymous',
+//       'timestamp': ServerValue.timestamp,
+//     });
+//
+//     _messageController.clear();
+//   }
+// }
