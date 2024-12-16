@@ -65,7 +65,7 @@ class SignUpScreenState extends State<SignUpScreen>
 
   void _scrollToFocusedField(FocusNode focusNode) {
     if (focusNode.hasFocus) {
-      Future.delayed(Duration(milliseconds: 100), () {
+      Future.delayed(const Duration(milliseconds: 100), () {
         _scrollController.animateTo(
           _scrollController.position.maxScrollExtent,
           duration: const Duration(milliseconds: 300),
