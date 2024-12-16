@@ -5,6 +5,7 @@ import 'package:web_chatter_mobile/Screens/Admin/admin_app_update_manager.dart';
 import 'package:web_chatter_mobile/Screens/Admin/admin_chat_monitoring.dart';
 import 'package:web_chatter_mobile/Screens/Admin/admin_dev_mode.dart';
 import 'package:web_chatter_mobile/Screens/Admin/admin_notification_screen.dart';
+import 'package:web_chatter_mobile/Screens/Admin/group_creation_screen.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -72,6 +73,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         'title': 'App Updates',
         'icon': Icons.system_update,
         'screen': const AppUpdateManagerScreen(),
+      },
+      {
+        'title': 'Group Creation',
+        'icon': Icons.group_add,
+        'screen': const AdminGroupCreationScreen(),
       },
     ];
 

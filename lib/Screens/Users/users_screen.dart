@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
@@ -28,6 +29,7 @@ class _UsersScreenState extends State<UsersScreen>
     with SingleTickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocus = FocusNode();
+  bool _isGroupView = false;
   String _searchQuery = '';
   final _lastMessagesNotifier =
       ValueNotifier<Map<String, Map<String, dynamic>>>({});
@@ -367,11 +369,53 @@ class _UsersScreenState extends State<UsersScreen>
               ),
             ),
           ),
+          _buildToggleButtons(), // Add this line
           Expanded(
-            child: _buildUsersList(currentUser),
+            child: _isGroupView
+                ? _buildGroupsList()
+                : _buildUsersList(currentUser),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildGroupsList() {
+    return StreamBuilder(
+      stream: FirebaseDatabase.instance.ref('groups').onValue,
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Center(
+              child: CircularProgressIndicator(color: Colors.white));
+        }
+
+        final groups =
+            (snapshot.data?.snapshot.value as Map?)?.entries.toList() ?? [];
+
+        return ListView.builder(
+          itemCount: groups.length,
+          itemBuilder: (context, index) {
+            final group = groups[index];
+            return ListTile(
+              title: Text(
+                group.value['name'],
+                style: const TextStyle(color: Colors.white),
+              ),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => GroupChatScreen(
+                      group: Map<String, dynamic>.from(group.value),
+                      groupId: group.key,
+                    ),
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
     );
   }
 
@@ -589,6 +633,61 @@ class _UsersScreenState extends State<UsersScreen>
     );
   }
 
+  Widget _buildToggleButtons() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          Expanded(
+            child: GestureDetector(
+              onTap: () => setState(() => _isGroupView = false),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: !_isGroupView ? Colors.white : const Color(0xFF1A1A1A),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Center(
+                  child: Text(
+                    'Chats',
+                    style: TextStyle(
+                      color: !_isGroupView ? Colors.black : Colors.white,
+                      fontFamily: 'Consola',
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: GestureDetector(
+              onTap: () => setState(() => _isGroupView = true),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: _isGroupView ? Colors.white : const Color(0xFF1A1A1A),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Center(
+                  child: Text(
+                    'Groups',
+                    style: TextStyle(
+                      color: _isGroupView ? Colors.black : Colors.white,
+                      fontFamily: 'Consola',
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildMessagePreview(String chatId, String currentUserId) {
     if (!_messageSubscriptions.containsKey(chatId)) {
       _subscribeToLastMessage(chatId, currentUserId);
@@ -719,6 +818,206 @@ class _OnlineStatusIndicatorState extends State<_OnlineStatusIndicator> {
             shape: BoxShape.circle,
           ),
         ),
+      ),
+    );
+  }
+}
+
+class GroupChatScreen extends StatefulWidget {
+  final Map<String, dynamic> group;
+  final String groupId;
+
+  const GroupChatScreen(
+      {super.key, required this.group, required this.groupId});
+
+  @override
+  State<GroupChatScreen> createState() => _GroupChatScreenState();
+}
+
+class _GroupChatScreenState extends State<GroupChatScreen> {
+  final TextEditingController _messageController = TextEditingController();
+  Map<String, dynamic> _groupMembers = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadGroupMembers();
+  }
+
+  Future<void> _loadGroupMembers() async {
+    final membersSnapshot =
+        await FirebaseDatabase.instance.ref('users').orderByKey().get();
+
+    if (membersSnapshot.exists) {
+      setState(() {
+        _groupMembers = Map<String, dynamic>.from(membersSnapshot.value as Map)
+          ..removeWhere((key, value) =>
+              !(widget.group['members'] as Map).containsKey(key));
+      });
+    }
+  }
+
+  void _sendMessage() {
+    final message = _messageController.text.trim();
+    if (message.isEmpty) return;
+
+    final currentUser = FirebaseAuth.instance.currentUser;
+    final messageRef =
+        FirebaseDatabase.instance.ref('group_chats/${widget.groupId}').push();
+
+    messageRef.set({
+      'text': message,
+      'senderId': currentUser?.uid,
+      'senderName': currentUser?.displayName ?? 'Anonymous',
+      'timestamp': ServerValue.timestamp,
+    });
+
+    _messageController.clear();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF121212),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF1F1F1F),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              widget.group['name'],
+              style: const TextStyle(
+                color: Colors.white,
+                fontFamily: 'Consola',
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            Text(
+              '${_groupMembers.length} members',
+              style: const TextStyle(
+                color: Colors.grey,
+                fontFamily: 'Consola',
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: StreamBuilder(
+              stream: FirebaseDatabase.instance
+                  .ref('group_chats/${widget.groupId}')
+                  .orderByChild('timestamp')
+                  .limitToLast(50)
+                  .onValue,
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                final messages =
+                    (snapshot.data?.snapshot.value as Map?)?.values.toList() ??
+                        [];
+
+                return ListView.builder(
+                  itemCount: messages.length,
+                  itemBuilder: (context, index) {
+                    final message = messages[index];
+                    final sender = _groupMembers[message['senderId']] ?? {};
+
+                    return ListTile(
+                      leading: _buildUserAvatar(sender),
+                      title: Text(
+                        message['senderName'] ?? 'Unknown',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontFamily: 'Consola',
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      subtitle: Text(
+                        message['text'],
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontFamily: 'Consola',
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+          _buildMessageInput(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMessageInput() {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      color: const Color(0xFF1F1F1F),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _messageController,
+              decoration: InputDecoration(
+                hintText: 'Type a message...',
+                filled: true,
+                fillColor: const Color(0xFF2A2A2A),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(20),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+              style: const TextStyle(color: Colors.white),
+            ),
+          ),
+          const SizedBox(width: 8),
+          CircleAvatar(
+            backgroundColor: Colors.white,
+            child: IconButton(
+              icon: const Icon(Icons.send, color: Color(0xFF121212)),
+              onPressed: _sendMessage,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUserAvatar(Map<String, dynamic> userData) {
+    final useSimpleAvatar = userData['useSimpleAvatar'] ?? false;
+    final avatarSeed = userData['avatarSeed'] as String?;
+    final email = userData['email'] as String;
+
+    return Container(
+      width: 48,
+      height: 48,
+      decoration: BoxDecoration(
+        color: const Color(0xFF2A2A2A),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Center(
+        child: useSimpleAvatar || avatarSeed == null || avatarSeed.isEmpty
+            ? Text(
+                email[0].toUpperCase(),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontFamily: 'Consola',
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              )
+            : RandomAvatar(
+                avatarSeed,
+                height: 48,
+                width: 48,
+              ),
       ),
     );
   }
