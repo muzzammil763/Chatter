@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:random_avatar/random_avatar.dart';
 import 'package:web_chatter_mobile/Core/Services/Auth/auth_service.dart';
 import 'package:web_chatter_mobile/Core/Services/Storage/shared_prefs_service.dart';
+import 'package:web_chatter_mobile/Screens/Users/user_profile_screen.dart';
 
 class GroupChatScreen extends StatefulWidget {
   final String groupId;
@@ -104,44 +105,47 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
       appBar: AppBar(
-        title: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: const Color(0xFF2A2A2A),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Center(
-                child: widget.groupDetails['avatarSeed'] == null ||
-                        widget.groupDetails['avatarSeed'].toString().isEmpty
-                    ? Text(
-                        widget.groupDetails['name'][0].toUpperCase(),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontFamily: 'Consola',
-                          fontWeight: FontWeight.bold,
+        title: GestureDetector(
+          onTap: () => _showGroupMembersDialog(),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2A2A2A),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Center(
+                  child: widget.groupDetails['avatarSeed'] == null ||
+                          widget.groupDetails['avatarSeed'].toString().isEmpty
+                      ? Text(
+                          widget.groupDetails['name'][0].toUpperCase(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontFamily: 'Consola',
+                            fontWeight: FontWeight.bold,
+                          ),
+                        )
+                      : RandomAvatar(
+                          widget.groupDetails['avatarSeed'],
+                          height: 32,
+                          width: 32,
                         ),
-                      )
-                    : RandomAvatar(
-                        widget.groupDetails['avatarSeed'],
-                        height: 32,
-                        width: 32,
-                      ),
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Text(
-              widget.groupDetails['name'],
-              style: const TextStyle(
-                color: Colors.white,
-                fontFamily: 'Consola',
-                fontWeight: FontWeight.bold,
+              const SizedBox(width: 12),
+              Text(
+                widget.groupDetails['name'],
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontFamily: 'Consola',
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         backgroundColor: const Color(0xFF1F1F1F),
       ),
@@ -209,6 +213,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                         itemBuilder: (context, index) {
                           final message = messages[index].value;
                           final isMe = message['senderId'] == currentUser?.uid;
+                          final senderName = message['senderName'] ?? 'Unknown';
 
                           return Align(
                             alignment: isMe
@@ -232,7 +237,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                 children: [
                                   if (!isMe)
                                     Text(
-                                      message['senderName'] ?? 'Unknown',
+                                      senderName,
                                       style: const TextStyle(
                                         fontFamily: 'Consola',
                                         color: Colors.yellow,
@@ -309,6 +314,92 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showGroupMembersDialog() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.5,
+        color: const Color(0xFF1A1A1A),
+        child: FutureBuilder(
+          future: FirebaseDatabase.instance
+              .ref('groups/${widget.groupId}/members')
+              .get(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            final members = snapshot.data?.value as Map<dynamic, dynamic>;
+            return ListView.builder(
+              itemCount: members.length,
+              itemBuilder: (context, index) {
+                final memberId = members.keys.elementAt(index);
+                return FutureBuilder(
+                  future:
+                      FirebaseDatabase.instance.ref('users/$memberId').get(),
+                  builder: (context, userSnap) {
+                    if (userSnap.connectionState == ConnectionState.waiting) {
+                      return const SizedBox();
+                    }
+                    final userData =
+                        userSnap.data?.value as Map<dynamic, dynamic>;
+                    return ListTile(
+                      leading:
+                          _buildUserAvatar(Map<String, dynamic>.from(userData)),
+                      title: Text(userData['name']),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => UserProfileScreen(
+                              user: Map<String, dynamic>.from(userData),
+                              userId: memberId,
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                );
+              },
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUserAvatar(Map<String, dynamic> userData) {
+    final useSimpleAvatar = userData['useSimpleAvatar'] ?? false;
+    final avatarSeed = userData['avatarSeed'] as String?;
+    final email = userData['email'] as String;
+
+    return Container(
+      width: 48,
+      height: 48,
+      decoration: BoxDecoration(
+        color: const Color(0xFF2A2A2A),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Center(
+        child: useSimpleAvatar || avatarSeed == null || avatarSeed.isEmpty
+            ? Text(
+                email[0].toUpperCase(),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontFamily: 'Consola',
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              )
+            : RandomAvatar(
+                avatarSeed,
+                height: 48,
+                width: 48,
+              ),
       ),
     );
   }

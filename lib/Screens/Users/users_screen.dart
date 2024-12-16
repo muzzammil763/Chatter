@@ -10,6 +10,7 @@ import 'package:web_chatter_mobile/Core/Services/Auth/auth_service.dart';
 import 'package:web_chatter_mobile/Core/Services/Notification/notification_service.dart';
 import 'package:web_chatter_mobile/Core/Services/Status/user_status_service.dart';
 import 'package:web_chatter_mobile/Core/Services/Storage/shared_prefs_service.dart';
+import 'package:web_chatter_mobile/Core/Utils/UI/custom_snackbar.dart';
 import 'package:web_chatter_mobile/Screens/Admin/admin_dashboard.dart';
 import 'package:web_chatter_mobile/Screens/Chat/chat_screen.dart';
 import 'package:web_chatter_mobile/Screens/Settings/settings_screen.dart';
@@ -408,15 +409,32 @@ class _UsersScreenState extends State<UsersScreen>
               ),
               child: ListTile(
                 onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => GroupChatScreen(
-                        groupId: group.key,
-                        groupDetails: Map<String, dynamic>.from(group.value),
+                  final currentUser = context
+                      .read<AuthService>()
+                      .currentUser; // Fetch current user
+                  if (currentUser == null) {
+                    CustomSnackbar.show(
+                        context, 'You must be logged in to join a group.',
+                        isError: true);
+                    return; // Exit the method if there's no current user.
+                  }
+
+                  final members = group.value['members'] ?? {};
+                  if (members is Map && members.containsKey(currentUser.uid)) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => GroupChatScreen(
+                          groupId: group.key,
+                          groupDetails: Map<String, dynamic>.from(group.value),
+                        ),
                       ),
-                    ),
-                  );
+                    );
+                  } else {
+                    CustomSnackbar.show(
+                        context, 'You are not a member of this group.',
+                        isError: true);
+                  }
                 },
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -433,7 +451,7 @@ class _UsersScreenState extends State<UsersScreen>
                 ),
                 subtitle: lastMessage != null && lastMessage.isNotEmpty
                     ? Text(
-                        lastMessage['text'], // Show the last message text
+                        lastMessage['text'],
                         style: const TextStyle(
                           fontFamily: 'Consola',
                           color: Colors.grey,
@@ -442,7 +460,7 @@ class _UsersScreenState extends State<UsersScreen>
                         overflow: TextOverflow.ellipsis,
                       )
                     : const Text(
-                        'No messages yet', // Fallback if no last message
+                        'No messages yet',
                         style: TextStyle(
                           fontFamily: 'Consola',
                           color: Colors.grey,
