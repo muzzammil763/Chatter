@@ -377,10 +377,8 @@ class _UsersScreenState extends State<UsersScreen>
 
   Widget _buildUsersList(currentUser) {
     final usersList = _cachedUsers.entries
-        .where(
-            (entry) => entry.key != currentUser?.uid) // Filter out current user
+        .where((entry) => entry.key != currentUser?.uid)
         .where((entry) {
-          // Filter based on search query
           final userData = Map<String, dynamic>.from(entry.value);
           final userName = (userData['name'] ?? '').toString().toLowerCase();
           final userEmail = (userData['email'] ?? '').toString().toLowerCase();
@@ -390,6 +388,39 @@ class _UsersScreenState extends State<UsersScreen>
         .map((entry) =>
             MapEntry(entry.key, Map<String, dynamic>.from(entry.value)))
         .toList();
+
+    // Sort users with unread messages to the top
+    usersList.sort((a, b) {
+      final chatIdA = getChatId(currentUser.uid, a.key);
+      final chatIdB = getChatId(currentUser.uid, b.key);
+
+      final lastMessageA = _cachedLastMessages[chatIdA];
+      final lastMessageB = _cachedLastMessages[chatIdB];
+
+      // Check if either message is unread
+      final isUnreadA = lastMessageA != null &&
+          lastMessageA['senderId'] != currentUser.uid &&
+          !(lastMessageA['read'] ?? false);
+      final isUnreadB = lastMessageB != null &&
+          lastMessageB['senderId'] != currentUser.uid &&
+          !(lastMessageB['read'] ?? false);
+
+      // If both have unread messages, sort by timestamp
+      if (isUnreadA && isUnreadB) {
+        final timestampA = lastMessageA['timestamp'] ?? 0;
+        final timestampB = lastMessageB['timestamp'] ?? 0;
+        return timestampB.compareTo(timestampA);
+      }
+
+      // Unread messages come first
+      if (isUnreadA) return -1;
+      if (isUnreadB) return 1;
+
+      // If no unread messages, sort by latest message timestamp
+      final timestampA = lastMessageA?['timestamp'] ?? 0;
+      final timestampB = lastMessageB?['timestamp'] ?? 0;
+      return timestampB.compareTo(timestampA);
+    });
 
     return AnimatedBuilder(
       animation: _animationController,
