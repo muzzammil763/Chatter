@@ -43,7 +43,16 @@ class AuthService with ChangeNotifier {
         password: password,
       );
 
-      String? fcmToken = await _notificationService.getFCMToken();
+      // Add retry logic for FCM token
+      String? fcmToken;
+      int retryCount = 0;
+      while (fcmToken == null && retryCount < 3) {
+        fcmToken = await _notificationService.getFCMToken();
+        if (fcmToken == null) {
+          await Future.delayed(const Duration(seconds: 1));
+          retryCount++;
+        }
+      }
 
       await _database.child('users/${userCredential.user!.uid}').set({
         'email': email,
