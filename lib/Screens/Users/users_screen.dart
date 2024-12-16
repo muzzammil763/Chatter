@@ -41,6 +41,7 @@ class _UsersScreenState extends State<UsersScreen>
   late Animation<double> _slideAnimation;
   Map<dynamic, dynamic> _cachedUsers = {};
   Map<String, Map<String, dynamic>> _cachedLastMessages = {};
+  // Map<dynamic, dynamic> _cachedGroups = {};
 
   void _subscribeToLastMessage(String chatId, String currentUserId) {
     _messageSubscriptions[chatId]?.cancel();
@@ -84,10 +85,20 @@ class _UsersScreenState extends State<UsersScreen>
       },
     );
 
+    _subscribeToGroups();
+
     final currentUser = context.read<AuthService>().currentUser;
     if (currentUser != null) {
       UserStatusService.startMonitoring(context, currentUser.uid);
     }
+  }
+
+  void _subscribeToGroups() {
+    FirebaseDatabase.instance.ref('groups').onValue.listen((event) {
+      if (!mounted) return;
+
+      debugPrint('Groups updated');
+    });
   }
 
   Future<void> _initializeNotifications() async {
@@ -394,13 +405,25 @@ class _UsersScreenState extends State<UsersScreen>
         final groups =
             (snapshot.data?.snapshot.value as Map?)?.entries.toList() ?? [];
 
+        if (groups.isEmpty) {
+          return const Center(
+            child: Text(
+              'No groups available',
+              style: TextStyle(
+                color: Colors.grey,
+                fontSize: 16,
+                fontFamily: 'Consola',
+              ),
+            ),
+          );
+        }
+
         return ListView.builder(
           padding: const EdgeInsets.all(12),
           itemCount: groups.length,
           itemBuilder: (context, index) {
             final group = groups[index];
-            final lastMessage = _cachedLastMessages[
-                group.key]; // Get last message for this group
+            final lastMessage = _cachedLastMessages[group.key]; // Last message
 
             return Container(
               margin: const EdgeInsets.only(bottom: 8),
@@ -410,9 +433,7 @@ class _UsersScreenState extends State<UsersScreen>
               ),
               child: ListTile(
                 onTap: () {
-                  final currentUser = context
-                      .read<AuthService>()
-                      .currentUser; // Fetch current user
+                  final currentUser = context.read<AuthService>().currentUser;
                   if (currentUser == null) {
                     CustomSnackbar.show(
                         context, 'You must be logged in to join a group.',
@@ -743,7 +764,8 @@ class _UsersScreenState extends State<UsersScreen>
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 decoration: BoxDecoration(
                   color: !_isGroupView ? Colors.white : const Color(0xFF1A1A1A),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.white),
                 ),
                 child: Center(
                   child: Text(
@@ -766,7 +788,8 @@ class _UsersScreenState extends State<UsersScreen>
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 decoration: BoxDecoration(
                   color: _isGroupView ? Colors.white : const Color(0xFF1A1A1A),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.white),
                 ),
                 child: Center(
                   child: Text(

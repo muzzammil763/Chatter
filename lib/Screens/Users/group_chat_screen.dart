@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:ui';
 
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/foundation.dart';
@@ -106,6 +107,14 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
       appBar: AppBar(
+        titleSpacing: 0,
+        leading: IconButton(
+          icon: const Icon(
+            Icons.arrow_back,
+            color: Colors.white,
+          ),
+          onPressed: () => Navigator.pop(context),
+        ),
         scrolledUnderElevation: 0,
         title: GestureDetector(
           onTap: () => _showGroupMembersDialog(),
@@ -323,52 +332,114 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   void _showGroupMembersDialog() {
     showModalBottomSheet(
       context: context,
-      builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.5,
-        color: const Color(0xFF1A1A1A),
-        child: FutureBuilder(
-          future: FirebaseDatabase.instance
-              .ref('groups/${widget.groupId}/members')
-              .get(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            final members = snapshot.data?.value as Map<dynamic, dynamic>;
-            return ListView.builder(
-              itemCount: members.length,
-              itemBuilder: (context, index) {
-                final memberId = members.keys.elementAt(index);
-                return FutureBuilder(
-                  future:
-                      FirebaseDatabase.instance.ref('users/$memberId').get(),
-                  builder: (context, userSnap) {
-                    if (userSnap.connectionState == ConnectionState.waiting) {
-                      return const SizedBox();
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
+        child: Container(
+          height: MediaQuery.of(context).size.height * 0.5,
+          decoration: const BoxDecoration(
+            color: Color(0xFF1F1F1F),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            children: [
+              // Draggable indicator
+              Container(
+                margin: const EdgeInsets.only(top: 12),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[700],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              // Title
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Text(
+                  'Group Members',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontFamily: 'Consola',
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              // Members list
+              Expanded(
+                child: FutureBuilder(
+                  future: FirebaseDatabase.instance
+                      .ref('groups/${widget.groupId}/members')
+                      .get(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(
+                        child: CircularProgressIndicator(color: Colors.white),
+                      );
                     }
-                    final userData =
-                        userSnap.data?.value as Map<dynamic, dynamic>;
-                    return ListTile(
-                      leading:
-                          _buildUserAvatar(Map<String, dynamic>.from(userData)),
-                      title: Text(userData['name']),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => UserProfileScreen(
-                              user: Map<String, dynamic>.from(userData),
-                              userId: memberId,
-                            ),
+                    final members =
+                        snapshot.data?.value as Map<dynamic, dynamic>?;
+                    if (members == null || members.isEmpty) {
+                      return const Center(
+                        child: Text(
+                          'No members yet',
+                          style: TextStyle(
+                            color: Colors.grey,
+                            fontFamily: 'Consola',
                           ),
+                        ),
+                      );
+                    }
+                    return ListView.builder(
+                      itemCount: members.length,
+                      itemBuilder: (context, index) {
+                        final memberId = members.keys.elementAt(index);
+                        return FutureBuilder(
+                          future: FirebaseDatabase.instance
+                              .ref('users/$memberId')
+                              .get(),
+                          builder: (context, userSnap) {
+                            if (userSnap.connectionState ==
+                                ConnectionState.waiting) {
+                              return const SizedBox();
+                            }
+                            final userData =
+                                userSnap.data?.value as Map<dynamic, dynamic>?;
+                            if (userData == null) return const SizedBox();
+                            return ListTile(
+                              leading: _buildUserAvatar(
+                                Map<String, dynamic>.from(userData),
+                              ),
+                              title: Text(
+                                userData['name'] ?? '',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontFamily: 'Consola',
+                                ),
+                              ),
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => UserProfileScreen(
+                                      user: Map<String, dynamic>.from(userData),
+                                      userId: memberId,
+                                    ),
+                                  ),
+                                );
+                              },
+                            );
+                          },
                         );
                       },
                     );
                   },
-                );
-              },
-            );
-          },
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
