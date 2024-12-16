@@ -17,7 +17,8 @@ class SignUpScreenState extends State<SignUpScreen>
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _nameController = TextEditingController();
-  bool _isLoading = false;
+  bool _isEmailLoading = false;
+  bool _isGoogleLoading = false;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<double> _nameFieldAnimation;
@@ -68,7 +69,7 @@ class SignUpScreenState extends State<SignUpScreen>
       Future.delayed(const Duration(milliseconds: 100), () {
         _scrollController.animateTo(
           _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
+          duration: const Duration(milliseconds: 200),
           curve: Curves.easeInOut,
         );
       });
@@ -267,7 +268,7 @@ class SignUpScreenState extends State<SignUpScreen>
       width: double.infinity,
       height: 56,
       child: ElevatedButton(
-        onPressed: _isLoading ? null : _handleGoogleSignUp,
+        onPressed: _isGoogleLoading ? () {} : _handleGoogleSignUp,
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.white,
           shape: RoundedRectangleBorder(
@@ -275,35 +276,38 @@ class SignUpScreenState extends State<SignUpScreen>
           ),
           elevation: 0,
         ),
-        child: _isLoading
-            ? const SizedBox(
-                height: 24,
-                width: 24,
-                child: CircularProgressIndicator(
-                  color: Color(0xFF121212),
-                  strokeWidth: 2.5,
-                ),
-              )
-            : Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Image.asset(
-                    'assets/google_logo.png',
-                    height: 24,
-                    width: 24,
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 200),
+          child: _isGoogleLoading
+              ? const SizedBox(
+                  height: 24,
+                  width: 24,
+                  child: CircularProgressIndicator(
+                    color: Color(0xFF121212),
+                    strokeWidth: 2.5,
                   ),
-                  const SizedBox(width: 12),
-                  const Text(
-                    'Sign Up with Google',
-                    style: TextStyle(
-                      fontFamily: 'Consola',
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black87,
+                )
+              : Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Image.asset(
+                      'assets/google_logo.png',
+                      height: 24,
+                      width: 24,
                     ),
-                  ),
-                ],
-              ),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'Sign Up with Google',
+                      style: TextStyle(
+                        fontFamily: 'Consola',
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ],
+                ),
+        ),
       ),
     );
   }
@@ -377,7 +381,7 @@ class SignUpScreenState extends State<SignUpScreen>
       width: double.infinity,
       height: 56,
       child: ElevatedButton(
-        onPressed: _isLoading ? () {} : _handleSignUp,
+        onPressed: _isEmailLoading ? () {} : _handleSignUp,
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.white,
           shape: RoundedRectangleBorder(
@@ -387,7 +391,7 @@ class SignUpScreenState extends State<SignUpScreen>
         ),
         child: AnimatedSwitcher(
           duration: const Duration(milliseconds: 200),
-          child: _isLoading
+          child: _isEmailLoading
               ? const SizedBox(
                   height: 24,
                   width: 24,
@@ -411,12 +415,11 @@ class SignUpScreenState extends State<SignUpScreen>
   }
 
   Future<void> _handleGoogleSignUp() async {
-    setState(() => _isLoading = true);
+    setState(() => _isGoogleLoading = true);
 
     try {
       final authService = context.read<AuthService>();
 
-      // If email and name fields are filled, we'll use them to supplement Google Sign-Up
       String? supplementalName;
       String? supplementalEmail;
 
@@ -449,7 +452,7 @@ class SignUpScreenState extends State<SignUpScreen>
       if (!mounted) return;
       CustomSnackbar.show(context, e.toString(), isError: true);
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) setState(() => _isGoogleLoading = false);
     }
   }
 
@@ -465,7 +468,7 @@ class SignUpScreenState extends State<SignUpScreen>
       return;
     }
 
-    setState(() => _isLoading = true);
+    setState(() => _isEmailLoading = true);
 
     try {
       final authService = context.read<AuthService>();
@@ -491,7 +494,7 @@ class SignUpScreenState extends State<SignUpScreen>
       if (!mounted) return;
       CustomSnackbar.show(context, e.toString(), isError: true);
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) setState(() => _isEmailLoading = false);
     }
   }
 }
