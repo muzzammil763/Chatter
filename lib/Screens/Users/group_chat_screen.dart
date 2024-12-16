@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:firebase_database/firebase_database.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:random_avatar/random_avatar.dart';
@@ -213,7 +214,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                         itemBuilder: (context, index) {
                           final message = messages[index].value;
                           final isMe = message['senderId'] == currentUser?.uid;
-                          final senderName = message['senderName'] ?? 'Unknown';
+                          final senderName =
+                              (message['senderName'] ?? 'Unknown');
 
                           return Align(
                             alignment: isMe
@@ -235,15 +237,14 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  if (!isMe)
-                                    Text(
-                                      senderName,
-                                      style: const TextStyle(
-                                        fontFamily: 'Consola',
-                                        color: Colors.yellow,
-                                        fontSize: 12,
-                                      ),
+                                  Text(
+                                    senderName,
+                                    style: const TextStyle(
+                                      fontFamily: 'Consola',
+                                      color: Colors.yellow,
+                                      fontSize: 12,
                                     ),
+                                  ),
                                   const SizedBox(height: 4),
                                   Text(
                                     message['text'] ?? '',
@@ -411,16 +412,33 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     _messageController.clear();
 
     try {
+      // Fetch the sender's name from the `users` node
+      final userSnapshot =
+          await FirebaseDatabase.instance.ref('users/$currentUserId').get();
+
+      final senderName =
+          userSnapshot.child('name').value as String? ?? 'Unknown';
+
+      if (kDebugMode) {
+        print('Sending message: $messageText');
+        print('Sender ID: $currentUserId');
+        print('Sender Name: $senderName');
+      }
+
+      // Send the message with the fetched name
       await FirebaseDatabase.instance
           .ref('group_chats/${widget.groupId}')
           .push()
           .set({
         'text': messageText,
         'senderId': currentUserId,
-        'senderName':
-            context.read<AuthService>().currentUser?.displayName ?? '',
+        'senderName': senderName, // Use the fetched name
         'timestamp': ServerValue.timestamp,
       });
+
+      if (kDebugMode) {
+        print('Message sent successfully with sender name: $senderName');
+      }
     } catch (e) {
       debugPrint('Error sending message: $e');
     }
