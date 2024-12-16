@@ -393,29 +393,87 @@ class _UsersScreenState extends State<UsersScreen>
             (snapshot.data?.snapshot.value as Map?)?.entries.toList() ?? [];
 
         return ListView.builder(
+          padding: const EdgeInsets.all(12),
           itemCount: groups.length,
           itemBuilder: (context, index) {
             final group = groups[index];
-            return ListTile(
-              title: Text(
-                group.value['name'],
-                style: const TextStyle(color: Colors.white),
+            return Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1A1A1A),
+                borderRadius: BorderRadius.circular(12),
               ),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => GroupChatScreen(
-                      group: Map<String, dynamic>.from(group.value),
-                      groupId: group.key,
+              child: ListTile(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => GroupChatScreen(
+                        group: Map<String, dynamic>.from(group.value),
+                        groupId: group.key,
+                      ),
                     ),
+                  );
+                },
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                contentPadding: const EdgeInsets.all(12),
+                leading: _buildGroupAvatar(group.value),
+                title: Text(
+                  group.value['name'],
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Consola',
+                    color: Colors.white,
                   ),
-                );
-              },
+                ),
+                subtitle: Text(
+                  '${group.value['members']?.length ?? 0} members',
+                  style: TextStyle(
+                    fontFamily: 'Consola',
+                    color: Colors.grey[400],
+                    fontSize: 14,
+                  ),
+                ),
+              ),
             );
           },
         );
       },
+    );
+  }
+
+  Widget _buildGroupAvatar(dynamic groupData) {
+    final useSimpleAvatar = groupData['useSimpleAvatar'] ?? false;
+    final avatarSeed = groupData['avatarSeed'] as String?;
+    final groupName = groupData['name'] as String;
+
+    return Container(
+      width: 50,
+      height: 50,
+      decoration: BoxDecoration(
+        color: const Color(0xFF2A2A2A),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Center(
+        child: useSimpleAvatar || avatarSeed == null || avatarSeed.isEmpty
+            ? Text(
+                groupName[0].toUpperCase(),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontFamily: 'Consola',
+                  fontWeight: FontWeight.bold,
+                ),
+              )
+            : RandomAvatar(
+                avatarSeed,
+                height: 40,
+                width: 40,
+              ),
+      ),
     );
   }
 
@@ -837,11 +895,29 @@ class GroupChatScreen extends StatefulWidget {
 class _GroupChatScreenState extends State<GroupChatScreen> {
   final TextEditingController _messageController = TextEditingController();
   Map<String, dynamic> _groupMembers = {};
+  Map<String, dynamic> _lastMessage = {};
 
   @override
   void initState() {
     super.initState();
     _loadGroupMembers();
+    _subscribeToLastMessage();
+  }
+
+  void _subscribeToLastMessage() {
+    FirebaseDatabase.instance
+        .ref('group_chats/${widget.groupId}')
+        .limitToLast(1)
+        .onValue
+        .listen((event) {
+      final messagesMap = event.snapshot.value as Map?;
+      if (messagesMap != null && messagesMap.isNotEmpty) {
+        setState(() {
+          _lastMessage =
+              Map<String, dynamic>.from(messagesMap.values.first as Map);
+        });
+      }
+    });
   }
 
   Future<void> _loadGroupMembers() async {
@@ -857,22 +933,14 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     }
   }
 
-  void _sendMessage() {
-    final message = _messageController.text.trim();
-    if (message.isEmpty) return;
-
-    final currentUser = FirebaseAuth.instance.currentUser;
-    final messageRef =
-        FirebaseDatabase.instance.ref('group_chats/${widget.groupId}').push();
-
-    messageRef.set({
-      'text': message,
-      'senderId': currentUser?.uid,
-      'senderName': currentUser?.displayName ?? 'Anonymous',
-      'timestamp': ServerValue.timestamp,
-    });
-
-    _messageController.clear();
+  String _formatTimestamp(int? timestamp) {
+    if (timestamp == null) return '';
+    final dateTime = DateTime.fromMillisecondsSinceEpoch(timestamp);
+    final hour = dateTime.hour;
+    final minute = dateTime.minute;
+    final period = hour >= 12 ? 'PM' : 'AM';
+    final formattedHour = hour > 12 ? hour - 12 : hour;
+    return '${formattedHour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')} $period';
   }
 
   @override
@@ -902,6 +970,10 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             ),
           ],
         ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
       body: Column(
         children: [
@@ -927,21 +999,36 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                     final message = messages[index];
                     final sender = _groupMembers[message['senderId']] ?? {};
 
-                    return ListTile(
-                      leading: _buildUserAvatar(sender),
-                      title: Text(
-                        message['senderName'] ?? 'Unknown',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontFamily: 'Consola',
-                          fontWeight: FontWeight.bold,
-                        ),
+                    return Container(
+                      margin: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1A1A1A),
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      subtitle: Text(
-                        message['text'],
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontFamily: 'Consola',
+                      child: ListTile(
+                        leading: _buildUserAvatar(sender),
+                        title: Text(
+                          message['senderName'] ?? 'Unknown',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontFamily: 'Consola',
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        subtitle: Text(
+                          message['text'],
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontFamily: 'Consola',
+                          ),
+                        ),
+                        trailing: Text(
+                          _formatTimestamp(message['timestamp']),
+                          style: const TextStyle(
+                            color: Colors.grey,
+                            fontSize: 12,
+                          ),
                         ),
                       ),
                     );
@@ -952,6 +1039,38 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           ),
           _buildMessageInput(),
         ],
+      ),
+    );
+  }
+
+  Widget _buildUserAvatar(Map<String, dynamic> userData) {
+    final useSimpleAvatar = userData['useSimpleAvatar'] ?? false;
+    final avatarSeed = userData['avatarSeed'] as String?;
+    final email = userData['email'] as String;
+
+    return Container(
+      width: 48,
+      height: 48,
+      decoration: BoxDecoration(
+        color: const Color(0xFF2A2A2A),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Center(
+        child: useSimpleAvatar || avatarSeed == null || avatarSeed.isEmpty
+            ? Text(
+                email[0].toUpperCase(),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontFamily: 'Consola',
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              )
+            : RandomAvatar(
+                avatarSeed,
+                height: 48,
+                width: 48,
+              ),
       ),
     );
   }
@@ -990,35 +1109,21 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     );
   }
 
-  Widget _buildUserAvatar(Map<String, dynamic> userData) {
-    final useSimpleAvatar = userData['useSimpleAvatar'] ?? false;
-    final avatarSeed = userData['avatarSeed'] as String?;
-    final email = userData['email'] as String;
+  void _sendMessage() {
+    final message = _messageController.text.trim();
+    if (message.isEmpty) return;
 
-    return Container(
-      width: 48,
-      height: 48,
-      decoration: BoxDecoration(
-        color: const Color(0xFF2A2A2A),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Center(
-        child: useSimpleAvatar || avatarSeed == null || avatarSeed.isEmpty
-            ? Text(
-                email[0].toUpperCase(),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontFamily: 'Consola',
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              )
-            : RandomAvatar(
-                avatarSeed,
-                height: 48,
-                width: 48,
-              ),
-      ),
-    );
+    final currentUser = FirebaseAuth.instance.currentUser;
+    final messageRef =
+        FirebaseDatabase.instance.ref('group_chats/${widget.groupId}').push();
+
+    messageRef.set({
+      'text': message,
+      'senderId': currentUser?.uid,
+      'senderName': currentUser?.displayName ?? 'Anonymous',
+      'timestamp': ServerValue.timestamp,
+    });
+
+    _messageController.clear();
   }
 }

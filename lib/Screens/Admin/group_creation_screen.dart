@@ -1,4 +1,5 @@
 import 'package:firebase_database/firebase_database.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:random_avatar/random_avatar.dart';
 
@@ -14,6 +15,13 @@ class _AdminGroupCreationScreenState extends State<AdminGroupCreationScreen> {
   final TextEditingController _groupNameController = TextEditingController();
   Set<String> selectedUsers = {};
   Map<String, dynamic> users = {};
+  String? selectedGroupAvatarSeed;
+  bool useSimpleGroupAvatar = false;
+
+  final List<String> predefinedSeeds = List.generate(
+    60,
+    (index) => 'group-avatar-$index',
+  );
 
   @override
   void initState() {
@@ -26,7 +34,9 @@ class _AdminGroupCreationScreenState extends State<AdminGroupCreationScreen> {
       final snapshot = await FirebaseDatabase.instance.ref('users').get();
       if (snapshot.exists) {
         // Print the raw value to understand its structure
-        print('Raw users data: ${snapshot.value}');
+        if (kDebugMode) {
+          print('Raw users data: ${snapshot.value}');
+        }
 
         // Handle potential null or unexpected data structure
         if (snapshot.value is Map) {
@@ -36,15 +46,21 @@ class _AdminGroupCreationScreenState extends State<AdminGroupCreationScreen> {
                 value is Map ? Map<String, dynamic>.from(value) : {}));
           });
         } else {
-          print('Users data is not a Map');
+          if (kDebugMode) {
+            print('Users data is not a Map');
+          }
           users = {};
         }
       } else {
-        print('No users data exists');
+        if (kDebugMode) {
+          print('No users data exists');
+        }
         users = {};
       }
     } catch (e) {
-      print('Error loading users: $e');
+      if (kDebugMode) {
+        print('Error loading users: $e');
+      }
       users = {};
     }
   }
@@ -63,6 +79,8 @@ class _AdminGroupCreationScreenState extends State<AdminGroupCreationScreen> {
       'name': _groupNameController.text,
       'members': {for (var userId in selectedUsers) userId: true},
       'createdAt': ServerValue.timestamp,
+      'avatarSeed': selectedGroupAvatarSeed ?? '',
+      'useSimpleAvatar': useSimpleGroupAvatar,
     });
 
     Navigator.pop(context);
@@ -87,8 +105,46 @@ class _AdminGroupCreationScreenState extends State<AdminGroupCreationScreen> {
         children: [
           Padding(
             padding: const EdgeInsets.all(16),
+            child: GestureDetector(
+              onTap: () => _showAvatarSelectionDialog(),
+              child: Container(
+                width: 100,
+                height: 100,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2A2A2A),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Center(
+                  child: useSimpleGroupAvatar
+                      ? Text(
+                          _groupNameController.text.isNotEmpty
+                              ? _groupNameController.text[0].toUpperCase()
+                              : 'G',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 48,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        )
+                      : (selectedGroupAvatarSeed != null
+                          ? RandomAvatar(
+                              selectedGroupAvatarSeed!,
+                              height: 80,
+                              width: 80,
+                            )
+                          : const Icon(Icons.add_a_photo, color: Colors.white)),
+                ),
+              ),
+            ),
+          ),
+          // Group Name TextField
+          Padding(
+            padding: const EdgeInsets.all(16),
             child: TextField(
               controller: _groupNameController,
+              onChanged: (value) {
+                setState(() {}); // Trigger rebuild for avatar
+              },
               decoration: InputDecoration(
                 hintText: 'Enter Group Name',
                 filled: true,
@@ -174,43 +230,100 @@ class _AdminGroupCreationScreenState extends State<AdminGroupCreationScreen> {
     );
   }
 
-  Widget _buildUserAvatar(dynamic userData) {
-    if (userData is! Map) {
-      return Container(
-        width: 48,
-        height: 48,
-        color: Colors.grey,
-      );
-    }
-
-    final useSimpleAvatar = userData['useSimpleAvatar'] ?? false;
-    final avatarSeed = userData['avatarSeed'] as String?;
-    final email = userData['email'] as String? ?? 'N/A';
-
-    return Container(
-      width: 48,
-      height: 48,
-      decoration: BoxDecoration(
-        color: const Color(0xFF2A2A2A),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Center(
-        child: useSimpleAvatar || avatarSeed == null || avatarSeed.isEmpty
-            ? Text(
-                email.isNotEmpty ? email[0].toUpperCase() : '?',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontFamily: 'Consola',
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              )
-            : RandomAvatar(
-                avatarSeed,
-                height: 48,
-                width: 48,
+  void _showAvatarSelectionDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1F1F1F),
+        title: const Text(
+          'Choose Group Avatar',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SwitchListTile(
+              title: const Text(
+                'Use Simple Avatar',
+                style: TextStyle(color: Colors.white),
               ),
+              value: useSimpleGroupAvatar,
+              onChanged: (bool value) {
+                setState(() {
+                  useSimpleGroupAvatar = value;
+                  selectedGroupAvatarSeed = null;
+                });
+              },
+            ),
+            if (!useSimpleGroupAvatar)
+              SizedBox(
+                width: 300,
+                height: 300,
+                child: GridView.builder(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3,
+                    childAspectRatio: 1,
+                    crossAxisSpacing: 8,
+                    mainAxisSpacing: 8,
+                  ),
+                  itemCount: predefinedSeeds.length,
+                  itemBuilder: (context, index) {
+                    final seed = predefinedSeeds[index];
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          selectedGroupAvatarSeed = seed;
+                        });
+                        Navigator.pop(context);
+                      },
+                      child: RandomAvatar(seed),
+                    );
+                  },
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
+}
+
+Widget _buildUserAvatar(dynamic userData) {
+  if (userData is! Map) {
+    return Container(
+      width: 48,
+      height: 48,
+      color: Colors.grey,
+    );
+  }
+
+  final useSimpleAvatar = userData['useSimpleAvatar'] ?? false;
+  final avatarSeed = userData['avatarSeed'] as String?;
+  final email = userData['email'] as String? ?? 'N/A';
+
+  return Container(
+    width: 48,
+    height: 48,
+    decoration: BoxDecoration(
+      color: const Color(0xFF2A2A2A),
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Center(
+      child: useSimpleAvatar || avatarSeed == null || avatarSeed.isEmpty
+          ? Text(
+              email.isNotEmpty ? email[0].toUpperCase() : '?',
+              style: const TextStyle(
+                color: Colors.white,
+                fontFamily: 'Consola',
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            )
+          : RandomAvatar(
+              avatarSeed,
+              height: 48,
+              width: 48,
+            ),
+    ),
+  );
 }
