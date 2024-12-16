@@ -393,7 +393,7 @@ class _AppUpdateManagerScreenState extends State<AppUpdateManagerScreen>
                               ],
                             ),
                           ),
-                          SizedBox(height: 12),
+                          const SizedBox(height: 12),
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton(
